@@ -8,8 +8,8 @@ from typing import Any, Callable
 from aiohttp import ClientSession
 
 from .auth import TrueNASConnect
-from .helper import as_local, b2gib, parse_api, utc_from_timestamp, systemstats_process
-from .subscription import Subscriptions, Events
+from .helper import as_local, b2gib, parse_api, systemstats_process, utc_from_timestamp
+from .subscription import Events, Subscriptions
 
 _LOGGER = getLogger(__name__)
 
@@ -31,7 +31,9 @@ class TrueNASAPI(object):
         self._access = TrueNASConnect(self.session, host, token, use_ssl, verify_ssl)
         self._is_scale: bool = False
         self._is_virtual: bool = False
-        self._sub = Subscriptions((self.async_update_all, self.async_is_alive), scan_intervall)
+        self._sub = Subscriptions(
+            (self.async_update_all, self.async_is_alive), scan_intervall
+        )
         self._systemstats_errored: list(str) = []
         self.system = {}
         self.interfaces = {}
