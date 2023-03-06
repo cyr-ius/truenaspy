@@ -5,7 +5,7 @@
 import asyncio
 import logging
 
-from truenaspy import TrueNASAPI, Events
+from truenaspy import Events, TrueNASAPI
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
