@@ -5,13 +5,11 @@
     }
   ],
   "settings": {
-    "python.linting.flake8Enabled": true,
-    "python.formatting.provider": "black",
     "editor.formatOnSave": true,
-    "python.linting.pycodestyleEnabled": true,
-    "python.linting.pydocstyleEnabled": false,
-    "python.linting.pylintEnabled": true,
-    "python.linting.mypyEnabled": false
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "flake8.args": [
+      "--ignore=E501,E203,W504,E712,W503"
+    ]
   },
   "launch": {
     "version": "0.2.0",
