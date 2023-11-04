@@ -1,6 +1,6 @@
 -r requirements.txt
-black
 
+black
 flake8
 mypy
 pre-commit
