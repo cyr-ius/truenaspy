@@ -5,7 +5,7 @@ import asyncio
 import time
 from enum import Enum
 from logging import getLogger
-from typing import Callable, Dict, List, Tuple
+from typing import Any, Callable, List, Tuple
 
 _LOGGER = getLogger(__name__)
 
@@ -13,27 +13,31 @@ _LOGGER = getLogger(__name__)
 class Events(Enum):
     """Subscription events."""
 
-    SYSTEM = "system"
-    INTERFACES = "interfaces"
-    SERVICES = "services"
-    DATASETS = "datasets"
-    POOLS = "pools"
-    DISKS = "disks"
-    JAILS = "jails"
-    VMS = "vms"
+    ALERTS = "alerts"
+    ALL: str = "all_events"
     CHARTS = "charts"
     CLOUD = "cloudsync"
+    DATASETS = "datasets"
+    DISKS = "disks"
+    INTERFACES = "interfaces"
+    JAILS = "jails"
+    POOLS = "pools"
     REPLS = "replications"
+    SERVICES = "services"
+    SMARTS = "smartdisks"
     SNAPS = "snapshottasks"
-    ALL = "all_events"
+    SYSTEM = "system"
+    VMS = "virtualmachines"
 
 
 class Subscriptions:
     """Store subscriptions."""
 
-    def __init__(self, api: Tuple[Callable, Callable], scan_intervall: int) -> None:
+    def __init__(
+        self, api: Tuple[Callable[..., Any], Callable[..., Any]], scan_intervall: int
+    ) -> None:
         """Init and store callbacks."""
-        self._callbacks: Dict[str, List[Callable]] = {}
+        self._callbacks: dict[str, List[Callable[..., Any]]] = {}
         self._polling: bool = False
         self._update_all = api[0]
         self._is_alive = api[1]
@@ -49,18 +53,20 @@ class Subscriptions:
         """Set the last message time to never."""
         self.last_message_time = -self.scan_intervall
 
-    def subscribe(self, event_id: str, callback: Callable) -> None:
+    def subscribe(self, event_id: str, callback: Callable[..., Any]) -> None:
         """Subscribe to updates."""
         self._callbacks.setdefault(event_id, []).append(callback)
         if len(self._callbacks) == 1:
             self._polling = True
             asyncio.create_task(self._start())
+        return None
 
-    def unsubscribe(self, event_id: str, callback: Callable) -> None:
+    def unsubscribe(self, event_id: str, callback: Callable[..., Any]) -> None:
         """Unsubscribe from updates."""
         self._callbacks[event_id].remove(callback)
         if len(self._callbacks) == 0:
             self._stop()
+        return None
 
     def notify(self, event_id: str) -> None:
         """Notify subscribers of an update."""

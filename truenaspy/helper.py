@@ -1,13 +1,52 @@
 """API parser for JSON APIs."""
 from __future__ import annotations
 
+import json
+from dataclasses import dataclass
 from datetime import datetime
+from functools import reduce
 from logging import getLogger
-from typing import Any
+from typing import Any, Callable, Type
 
+from aiohttp import ClientSession
 from pytz import utc
 
 _LOGGER = getLogger(__name__)
+
+
+class ExtendedDict(dict[Any, Any]):
+    """Extend dictionnary class."""
+
+    def getr(self, keys: str, default: Any = None) -> Any:
+        """Get recursive attribut."""
+        reduce_value: Any = reduce(
+            lambda d, key: d.get(key, default) if isinstance(d, dict) else default,
+            keys.split("."),
+            self,
+        )
+        if isinstance(reduce_value, dict):
+            return ExtendedDict(reduce_value)
+        return reduce_value
+
+
+class FieldType(dict[str, Any]):
+    """Attributes fields."""
+
+    name: str
+    default: Any = None
+    source: str | None = None
+    evaluation: Callable[..., Any] | None = None
+
+
+@dataclass
+class Collects(object):
+    """Collect options."""
+
+    params: dict[str, Any] | None = None
+    attrs: list[FieldType] | None = None
+    request: str | None = None
+    method: str = "get"
+    key: str | None = None
 
 
 def utc_from_timestamp(timestamp: float) -> datetime:
@@ -15,9 +54,10 @@ def utc_from_timestamp(timestamp: float) -> datetime:
     return utc.localize(datetime.utcfromtimestamp(timestamp))
 
 
-def b2gib(b: int) -> float:
+def b2gib(b: int) -> float | None:
     """Convert byte to gigabyte."""
-    return round(b / 1073741824, 2)
+    if isinstance(b, int):
+        return round(b / 1073741824, 2)
 
 
 def as_local(dattim: datetime) -> datetime:
@@ -31,75 +71,26 @@ def as_local(dattim: datetime) -> datetime:
     return dattim.astimezone(local_timezone)
 
 
-def from_entry(entry: dict[str, Any], param: str, default=None, reverse=False) -> str:
-    """Validate and return str value an API dict."""
-    if "/" in param:
-        for tmp_param in param.split("/"):
-            if isinstance(entry, dict):
-                entry = entry.get(tmp_param, default)
-        ret = entry
-    else:
-        ret = entry.get(param, default)
-
-    if isinstance(ret, str):
-        if ret in ("on", "On", "ON", "yes", "Yes", "YES", "up", "Up", "UP"):
-            return False if reverse else True
-        elif ret in ("off", "Off", "OFF", "no", "No", "NO", "down", "Down", "DOWN"):
-            return True if reverse else False
-        else:
-            return str(ret)[:255] if len(str(ret)) > 255 else str(ret)
-    elif isinstance(ret, int):
-        return int(ret)
-    elif isinstance(ret, float):
-        return round(float(ret), 2)
-    elif isinstance(ret, bool):
-        return ret
+def json_parser(obj: dict[str, Any]) -> dict[str, Any]:
+    """parse json."""
+    for key, val in obj.items():
+        if val in ("on", "On", "ON", "yes", "Yes", "YES", "up", "Up", "UP"):
+            obj[key] = True
+        if val in ("off", "Off", "OFF", "no", "No", "NO", "down", "Down", "DOWN"):
+            obj[key] = True
+        if isinstance(val, float):
+            obj[key] = round(float(val), 2)
+        if isinstance(val, str):
+            obj[key] = str(val)[:255]
+        if isinstance(val, dict):
+            obj[key] = json_parser(val)
+    return ExtendedDict(obj)
 
 
-def parse_api(
-    data: dict[str, Any],
-    source: dict[str, Any],
-    key: str = None,
-    vals: dict[str, Any] = None,
-) -> dict:
-    """Get data from API."""
-    if isinstance(source, dict):
-        source = [source]
-
-    _LOGGER.debug("Processing source %s", source)
-
-    for entry in source:
-        uid = None
-        if key:
-            if key in entry:
-                uid = entry[key]
-                if uid not in data:
-                    data[uid] = {}
-            else:
-                continue
-
-        _LOGGER.debug("Processing entry %s", entry)
-
-        for val in vals:
-            _name = val["name"]
-            _source = val.get("source", _name)
-            _convert = val.get("convert")
-            _reverse = val.get("reverse", False)
-            _default = val.get("default")
-
-            data_name = from_entry(entry, _source, _default, _reverse)
-
-            if _convert == "utc_from_timestamp" and isinstance(data_name, int):
-                if data_name > 100000000000:
-                    data_name = data_name / 1000
-                data_name = utc_from_timestamp(data_name)
-
-            if uid:
-                data[uid][_name] = data_name
-            else:
-                data[_name] = data_name
-
-    return data
+def json_loads(response: str | bytes) -> ExtendedDict:
+    """Json load."""
+    data_dict: ExtendedDict = json.loads(response, object_hook=json_parser)
+    return data_dict
 
 
 def systemstats_process(
@@ -110,7 +101,7 @@ def systemstats_process(
         for item in graph["legend"]:
             if item in arr:
                 position = graph["legend"].index(item)
-                value = graph["aggregations"]["mean"][position] or 0.0
+                value: int = graph["aggregations"]["mean"][position] or 0
                 if mode == "memory":
                     fill_dict[item] = b2gib(value)
                 elif mode == "cpu":
@@ -119,3 +110,35 @@ def systemstats_process(
                     fill_dict[item] = round(value / 1024, 2)
                 else:
                     fill_dict[item] = round(value, 2)
+
+
+async def async_attributes(
+    identity: Type[Collects], session: ClientSession
+) -> dict[str, Any]:
+    """Map attributes."""
+    attributes = {}
+    response = await session.async_request(
+        path=identity.request, params=identity.params, method=identity.method
+    )
+    if response and identity.attrs:
+        if not isinstance(response, list):
+            response = [response]
+        for item in response:
+            attrs = {}
+            for attr in identity.attrs:
+                name = attr["name"]
+                key = attr.get("source", name)
+                value = item.getr(key, attr.get("default"))
+                if value and (evaluation := attr.get("evaluation")):
+                    try:
+                        value = evaluation(value)
+                    except Exception as error:  # pylint: disable=broad-except
+                        _LOGGER.error(error)
+                attrs.update({name: value})
+
+            if identity.key:
+                attributes.update({item.get(identity.key): attrs})
+            else:
+                attributes.update(attrs)
+
+    return attributes

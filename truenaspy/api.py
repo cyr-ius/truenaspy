@@ -3,15 +3,434 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from logging import getLogger
-from typing import Any, Callable
+from typing import Any, Self
 
 from aiohttp import ClientSession
 
 from .auth import TrueNASConnect
-from .helper import as_local, b2gib, parse_api, systemstats_process, utc_from_timestamp
+from .exceptions import TruenasException
+from .helper import (
+    Collects,
+    FieldType,
+    as_local,
+    async_attributes,
+    b2gib,
+    systemstats_process,
+    utc_from_timestamp,
+)
 from .subscription import Events, Subscriptions
 
 _LOGGER = getLogger(__name__)
+
+
+class System(Collects):
+    """System."""
+
+    request = "system/info"
+    attrs = [
+        FieldType(name="version"),
+        FieldType(name="hostname"),
+        FieldType(name="uptime_seconds", default=0),
+        FieldType(name="system_serial"),
+        FieldType(name="system_product"),
+        FieldType(name="system_manufacturer"),
+    ]
+
+
+class Update(Collects):
+    """System."""
+
+    request = "update/check_available"
+    method = "post"
+    attrs = [
+        FieldType(name="update_status", source="status"),
+        FieldType(name="update_version", source="version"),
+    ]
+
+
+class Job(Collects):
+    """System."""
+
+    request = "core/get_jobs"
+    method = "post"
+    attrs = [
+        FieldType(name="update_progress", source="progress.percent", default=0),
+        FieldType(name="update_state", source="state"),
+    ]
+
+
+class Interfaces(Collects):
+    """System."""
+
+    request = "interface"
+    key = "name"
+    attrs = [
+        FieldType(name="id"),
+        FieldType(name="name"),
+        FieldType(name="description"),
+        FieldType(name="mtu"),
+        FieldType(name="link_state", source="state.link_state"),
+        FieldType(name="active_media_type", source="state.active_media_type"),
+        FieldType(name="link_address", source="state.link_address"),
+    ]
+
+
+class Service(Collects):
+    """Service."""
+
+    request = "service"
+    key = "service"
+    attrs = [
+        FieldType(name="id"),
+        FieldType(name="name"),
+        FieldType(name="enable", default=False),
+        FieldType(name="state"),
+    ]
+
+
+class Pool(Collects):
+    """Pool."""
+
+    request = "pool"
+    key = "guid"
+    attrs = [
+        FieldType(name="guid", default=0),
+        FieldType(name="id", default=0),
+        FieldType(name="name"),
+        FieldType(name="path"),
+        FieldType(name="status"),
+        FieldType(name="healthy", default=False),
+        FieldType(name="is_decrypted", default=False),
+        FieldType(name="autotrim", default=False, source="autotrim.parsed"),
+        FieldType(name="scan_function", source="scan.function"),
+        FieldType(name="scan_function", source="scan.state"),
+        FieldType(
+            name="scrub_start",
+            source="scan.start_time.$date",
+            default=0,
+            evaluation=lambda x: utc_from_timestamp(
+                x if x < 100000000000 else x / 1000
+            ),
+        ),
+        FieldType(
+            name="scrub_end",
+            source="scan.end_time.$date",
+            default=0,
+            evaluation=lambda x: utc_from_timestamp(
+                x if x < 100000000000 else x / 1000
+            ),
+        ),
+        FieldType(name="scrub_secs_left", default=0, source="scan.total_secs_left"),
+    ]
+
+
+class Boot(Collects):
+    """Boot."""
+
+    request = "boot/get_state"
+    key = "guid"
+    attrs = [
+        FieldType(name="guid", default=0),
+        FieldType(name="id", default=0),
+        FieldType(name="name"),
+        FieldType(name="path"),
+        FieldType(name="status"),
+        FieldType(name="healthy", default=False),
+        FieldType(name="is_decrypted", default=False),
+        FieldType(name="autotrim", default=False, source="autotrim.parsed"),
+        FieldType(name="root_dataset"),
+        FieldType(
+            name="root_dataset_available",
+            default=0,
+            source="root_dataset.properties.available.parsed",
+        ),
+        FieldType(
+            name="root_dataset_used",
+            default=0,
+            source="root_dataset.properties.used.parsed",
+        ),
+        FieldType(name="scan_function", source="scan.function"),
+        FieldType(name="scan_function", source="scan.state"),
+        FieldType(
+            name="scrub_start",
+            source="scan.start_time.$date",
+            default=0,
+            evaluation=lambda x: utc_from_timestamp(
+                x if x < 100000000000 else x / 1000
+            ),
+        ),
+        FieldType(
+            name="scrub_end",
+            source="scan.end_time.$date",
+            default=0,
+            evaluation=lambda x: utc_from_timestamp(
+                x if x < 100000000000 else x / 1000
+            ),
+        ),
+        FieldType(name="scrub_secs_left", default=0, source="scan.total_secs_left"),
+    ]
+
+
+class Disk(Collects):
+    """Disk."""
+
+    request = "disk"
+    key = "devname"
+    attrs = [
+        FieldType(name="name"),
+        FieldType(name="devname"),
+        FieldType(name="serial"),
+        FieldType(name="size"),
+        FieldType(name="hddstandby_force", default=False),
+        FieldType(name="advpowermgmt"),
+        FieldType(name="acousticlevel"),
+        FieldType(name="togglesmart", default=False),
+        FieldType(name="model"),
+        FieldType(name="rotationrate"),
+        FieldType(name="type"),
+    ]
+
+
+class Jail(Collects):
+    """Jail."""
+
+    request = "jail"
+    key = "id"
+    attrs = [
+        FieldType(name="id"),
+        FieldType(name="comment"),
+        FieldType(name="host_hostname"),
+        FieldType(name="jail_zfs_dataset"),
+        FieldType(name="last_started"),
+        FieldType(name="ip4_addr"),
+        FieldType(name="ip6_addr"),
+        FieldType(name="release"),
+        FieldType(name="state", default=False),
+        FieldType(name="type"),
+        FieldType(name="plugin_name"),
+    ]
+
+
+class VirtualMachine(Collects):
+    """VirtualMachine."""
+
+    request = "vm"
+    key = "name"
+    attrs = [
+        FieldType(name="id", default=0),
+        FieldType(name="name"),
+        FieldType(name="description"),
+        FieldType(name="vcpus", default=0),
+        FieldType(name="memory", default=0),
+        FieldType(name="autostart", default=False),
+        FieldType(name="cores", default=0),
+        FieldType(name="threads", default=0),
+        FieldType(name="state", source="status.state"),
+    ]
+
+
+class Datasets(Collects):
+    """Datasets."""
+
+    request = "pool/dataset"
+    key = "id"
+    attrs = [
+        FieldType(name="id"),
+        FieldType(name="type"),
+        FieldType(name="name"),
+        FieldType(name="pool"),
+        FieldType(name="mountpoint"),
+        FieldType(name="comments", default="", source="comments.parsed"),
+        FieldType(name="deduplication", default=False, source="deduplication.parsed"),
+        FieldType(name="atime", default=False, source="atime.parsed"),
+        FieldType(name="casesensitivity", source="casesensitivity.parsed"),
+        FieldType(name="checksum", source="checksum.parsed"),
+        FieldType(name="exec", default=False, source="exec.parsed"),
+        FieldType(name="sync", source="sync.parsed"),
+        FieldType(name="compression", source="compression.parsed"),
+        FieldType(name="quota", source="quota.parsed"),
+        FieldType(name="copies", default=0, source="copies.parsed"),
+        FieldType(name="readonly", default=False, source="readonly.parsed"),
+        FieldType(name="recordsize", default=0, source="recordsize.parsed"),
+        FieldType(name="encryption_algorithm", source="encryption_algorithm.parsed"),
+        FieldType(name="used", default=0, source="used.parsed"),
+        FieldType(name="available", default=0, source="available.parsed"),
+    ]
+
+
+class CloudSync(Collects):
+    """CloudSync."""
+
+    request = "cloudsync"
+    key = "id"
+    attrs = [
+        FieldType(name="id"),
+        FieldType(name="description"),
+        FieldType(name="direction"),
+        FieldType(name="path"),
+        FieldType(name="enabled", default=False),
+        FieldType(name="transfer_mode"),
+        FieldType(name="snapshot", default=False),
+        FieldType(name="state", source="job.state"),
+        FieldType(
+            name="time_started",
+            source="job.time_started.$date",
+            default=0,
+            evaluation=lambda x: utc_from_timestamp(
+                x if x < 100000000000 else x / 1000
+            ),
+        ),
+        FieldType(
+            name="time_finished",
+            source="job.time_finished.$date",
+            default=0,
+            evaluation=lambda x: utc_from_timestamp(
+                x if x < 100000000000 else x / 1000
+            ),
+        ),
+        FieldType(name="job_percent", source="job.progress.percent", default=0),
+        FieldType(name="job.progress.percent", source="job.progress.description"),
+    ]
+
+
+class Replication(Collects):
+    """Replication."""
+
+    request = "replication"
+    key = "name"
+    attrs = [
+        FieldType(name="id", default=0),
+        FieldType(name="name"),
+        FieldType(name="source_datasets"),
+        FieldType(name="target_dataset"),
+        FieldType(name="recursive", default=False),
+        FieldType(name="enabled", default=False),
+        FieldType(name="direction"),
+        FieldType(name="transport"),
+        FieldType(name="auto", default=False),
+        FieldType(name="retention_policy"),
+        FieldType(name="state", source="job.state"),
+        FieldType(
+            name="time_started",
+            source="job.time_started.$date",
+            default=0,
+            evaluation=lambda x: utc_from_timestamp(
+                x if x < 100000000000 else x / 1000
+            ),
+        ),
+        FieldType(
+            name="time_finished",
+            source="job.time_finished.$date",
+            default=0,
+            evaluation=lambda x: utc_from_timestamp(
+                x if x < 100000000000 else x / 1000
+            ),
+        ),
+        FieldType(name="job_percent", source="job.progress.percent", default=0),
+        FieldType(name="job.progress.percent", source="job.progress.description"),
+    ]
+
+
+class Snapshottask(Collects):
+    """Snapshottask."""
+
+    request = "pool/snapshottask"
+    key = "id"
+    attrs = [
+        FieldType(name="id", default=0),
+        FieldType(name="dataset"),
+        FieldType(name="recursive", default=False),
+        FieldType(name="lifetime_value", default=0),
+        FieldType(name="lifetime_unit"),
+        FieldType(name="enabled", default=False),
+        FieldType(name="naming_schema"),
+        FieldType(name="allow_empty", default=False),
+        FieldType(name="vmware_sync", default=False),
+        FieldType(name="state", source="state.state"),
+        FieldType(
+            name="datetime",
+            source="state.datetime.$date",
+            default=0,
+            evaluation=lambda x: utc_from_timestamp(
+                x if x < 100000000000 else x / 1000
+            ),
+        ),
+        FieldType(
+            name="time_finished",
+            source="job.time_finished.$date",
+            default=0,
+            evaluation=lambda x: utc_from_timestamp(
+                x if x < 100000000000 else x / 1000
+            ),
+        ),
+        FieldType(name="job_percent", source="job.progress.percent", default=0),
+        FieldType(name="job.progress.percent", source="job.progress.description"),
+    ]
+
+
+class Charts(Collects):
+    """Charts."""
+
+    request = "chart/release"
+    key = "id"
+    attrs = [
+        FieldType(name="id", default=0),
+        FieldType(name="name"),
+        FieldType(name="human_version"),
+        FieldType(name="update_available"),
+        FieldType(name="container_images_update_available"),
+        FieldType(name="portal", source="portals.open"),
+        FieldType(name="status"),
+    ]
+
+
+class Smart(Collects):
+    """Smart."""
+
+    request = "/smart/test/results"
+    key = "name"
+    params = {"offset": 1}
+    attrs = [
+        FieldType(name="name"),
+        FieldType(name="serial"),
+        FieldType(name="model"),
+        FieldType(name="zfs_guid"),
+        FieldType(name="devname"),
+        FieldType(
+            name="smartdisk",
+            source="tests",
+            evaluation=lambda x: x[0].get("status")
+            if isinstance(x, list) and len(x) > 0
+            else "n/a",
+        ),
+    ]
+
+
+class Alerts(Collects):
+    """Alerts."""
+
+    request = "/alert/list"
+    key = "uuid"
+    attrs = [
+        FieldType(name="uuid"),
+        FieldType(name="formatted"),
+        FieldType(name="klass"),
+        FieldType(name="level"),
+        FieldType(
+            name="date_created",
+            source="datetime.$date",
+            evaluation=lambda x: utc_from_timestamp(
+                x if x < 100000000000 else x / 1000
+            ),
+        ),
+        FieldType(
+            name="last_occurrence",
+            source="last_occurrence.$date",
+            evaluation=lambda x: utc_from_timestamp(
+                x if x < 100000000000 else x / 1000
+            ),
+        ),
+    ]
 
 
 class TrueNASAPI(object):
@@ -25,60 +444,42 @@ class TrueNASAPI(object):
         use_ssl: bool = False,
         verify_ssl: bool = True,
         scan_intervall: int = 60,
+        timeout: int = 300,
     ) -> None:
         """Initialize the TrueNAS API."""
-        self.session = session if session else ClientSession()
-        self._access = TrueNASConnect(self.session, host, token, use_ssl, verify_ssl)
+        self._access = TrueNASConnect(
+            host, token, use_ssl, verify_ssl, timeout, session
+        )
         self._is_scale: bool = False
         self._is_virtual: bool = False
         self._sub = Subscriptions(
             (self.async_update_all, self.async_is_alive), scan_intervall
         )
-        self._systemstats_errored: list(str) = []
-        self.system = {}
-        self.interfaces = {}
-        self.stats = {}
-        self.services = {}
-        self.pools = {}
-        self.datasets = {}
-        self.disks = {}
-        self.jails = {}
-        self.virtualmachines = {}
-        self.cloudsync = {}
-        self.replications = {}
-        self.snapshots = {}
-        self.charts = {}
+        self._systemstats_errored: list[str] = []
+        self.system: dict[str, Any] = {}
+        self.interfaces: dict[str, Any] = {}
+        self.stats: dict[str, Any] = {}
+        self.services: dict[str, Any] = {}
+        self.pools: dict[str, Any] = {}
+        self.datasets: dict[str, Any] = {}
+        self.disks: dict[str, Any] = {}
+        self.jails: dict[str, Any] = {}
+        self.virtualmachines: dict[str, Any] = {}
+        self.cloudsync: dict[str, Any] = {}
+        self.replications: dict[str, Any] = {}
+        self.snapshots: dict[str, Any] = {}
+        self.charts: dict[str, Any] = {}
         self.data: dict[str, Any] = {}
+        self.smarts: dict[str, Any] = {}
+        self.alerts: dict[str, Any] = {}
 
-    async def async_get_system(self) -> None:
+    async def async_get_system(self) -> dict[str, Any]:
         """Get system info from TrueNAS."""
-        source = await self._access.async_request("system/info")
-        self.system = parse_api(
-            data={},
-            source=source,
-            vals=[
-                {"name": "version"},
-                {"name": "hostname"},
-                {"name": "uptime_seconds", "default": 0},
-                {"name": "system_serial"},
-                {"name": "system_product"},
-                {"name": "system_manufacturer"},
-            ],
-        )
-
-        source = await self._access.async_request(
-            "update/check_available", method="post"
-        )
-        update = parse_api(
-            data={},
-            source=source,
-            vals=[
-                {"name": "update_status", "source": "status"},
-                {"name": "update_version", "source": "version"},
-            ],
-        )
+        self.system = await async_attributes(System, self._access)
 
         # update_available
+        update = await async_attributes(Update, self._access)
+
         update_available = update.get("update_status") == "AVAILABLE"
         self.system.update({"update_available": update_available})
         # update_version
@@ -86,23 +487,9 @@ class TrueNASAPI(object):
             self.system.update({"update_version": self.system["version"]})
 
         if update_jobid := self.system.get("update_jobid"):
-            source = self._access.async_request(
-                "core/get_jobs", params={"id": update_jobid}
-            )
-            jobs = parse_api(
-                data={},
-                source=source,
-                vals=[
-                    {
-                        "name": "update_progress",
-                        "source": "progress/percent",
-                        "default": 0,
-                    },
-                    {"name": "update_state", "source": "state"},
-                ],
-            )
-
-            if jobs["update_state"] != "RUNNING" or not update_available:
+            Job.params = {"id": update_jobid}
+            jobs = await async_attributes(Job, self._access)
+            if jobs.get("update_state") != "RUNNING" or not update_available:
                 self.system.update(
                     {"update_progress": 0, "update_jobid": 0, "update_state": "unknown"}
                 )
@@ -136,7 +523,7 @@ class TrueNASAPI(object):
         if not self._is_virtual:
             query.append({"name": "cputemp"})
 
-        stats = await self.async_get_stats(query)
+        stats: list[dict[str, Any]] = await self.async_get_stats(query)
         for item in stats:
             # CPU temperature
             if item.get("name") == "cputemp" and "aggregations" in item:
@@ -146,12 +533,12 @@ class TrueNASAPI(object):
 
             # CPU load
             if item.get("name") == "load":
-                tmp_arr = ("load_shortterm", "load_midterm", "load_longterm")
+                tmp_arr = ["load_shortterm", "load_midterm", "load_longterm"]
                 systemstats_process(self.system, tmp_arr, item, "")
 
             # CPU usage
             if item.get("name") == "cpu":
-                tmp_arr = ("interrupt", "system", "user", "nice", "idle")
+                tmp_arr = ["interrupt", "system", "user", "nice", "idle"]
                 systemstats_process(self.system, tmp_arr, item, "cpu")
                 self.system["cpu_usage"] = round(
                     self.system["cpu_system"] + self.system["cpu_user"], 2
@@ -159,12 +546,12 @@ class TrueNASAPI(object):
 
             # arcratio
             if item.get("name") == "memory":
-                tmp_arr = (
+                tmp_arr = [
                     "memory-used_value",
                     "memory-free_value",
                     "memory-cached_value",
                     "memory-buffered_value",
-                )
+                ]
                 systemstats_process(self.system, tmp_arr, item, "memory")
                 self.system["memory_total_value"] = round(
                     self.system["memory-used_value"]
@@ -182,43 +569,22 @@ class TrueNASAPI(object):
 
             # arcsize
             if item.get("name") == "arcsize":
-                tmp_arr = ("cache_size-arc_value", "cache_size-L2_value")
+                tmp_arr = ["cache_size-arc_value", "cache_size-L2_value"]
                 systemstats_process(self.system, tmp_arr, item, "memory")
 
             # arcratio
             if item.get("name") == "arcratio":
-                tmp_arr = ("cache_ratio-arc_value", "cache_ratio-L2_value")
+                tmp_arr = ["cache_ratio-arc_value", "cache_ratio-L2_value"]
                 systemstats_process(self.system, tmp_arr, item, "")
 
         self.data["systeminfos"] = self.system
-        self._sub.notify(Events.SYSTEM)
+        self._sub.notify(Events.SYSTEM.value)
         return self.system
 
-    async def async_get_interfaces(self) -> None:
+    async def async_get_interfaces(self) -> dict[str, Any]:
         """Get interface info from TrueNAS."""
-        source = await self._access.async_request("interface")
-        self.interfaces = parse_api(
-            data={},
-            source=source,
-            key="name",
-            vals=[
-                {"name": "id"},
-                {"name": "name"},
-                {"name": "description"},
-                {"name": "mtu"},
-                {"name": "link_state", "source": "state/link_state"},
-                {"name": "active_media_type", "source": "state/active_media_type"},
-                {
-                    "name": "active_media_subtype",
-                    "source": "state/active_media_subtype",
-                },
-                {"name": "link_address", "source": "state/link_address"},
-            ],
-        )
-
-        query = [
-            {"name": "interface", "identifier": uid} for uid in self.interfaces.keys()
-        ]
+        self.interfaces = await async_attributes(Interfaces, self._access)
+        query = [{"name": "interface", "identifier": uid} for uid in self.interfaces]
         stats = await self.async_get_stats(query)
         for item in stats:
             # Interface
@@ -232,16 +598,16 @@ class TrueNASAPI(object):
                 ]
 
                 systemstats_process(
-                    self.interfaces[identifier], ("rx", "tx"), item, "rx-tx"
+                    self.interfaces[identifier], ["rx", "tx"], item, "rx-tx"
                 )
 
         self.data["interfaces"] = self.interfaces
-        self._sub.notify(Events.INTERFACES)
+        self._sub.notify(Events.INTERFACES.value)
         return self.interfaces
 
-    async def async_get_stats(self, items: list[dict[str, Any]]) -> None:
+    async def async_get_stats(self, items: list[dict[str, Any]]) -> Any:
         """Get statistics."""
-        query = {
+        query: dict[str, Any] = {
             "graphs": items,
             "reporting_query": {
                 "start": "now-90s",
@@ -258,140 +624,45 @@ class TrueNASAPI(object):
             "reporting/get_data", method="post", json=query
         )
 
-        if not isinstance(stats, list):
-            if "error" in stats:
-                for param in query["graphs"]:
-                    graph_retry = await self._access.async_request(
-                        "reporting/get_data",
-                        method="post",
-                        json={
-                            "graphs": [
-                                param,
-                            ],
-                            "reporting_query": {
-                                "start": "now-90s",
-                                "end": "now-30s",
-                                "aggregate": True,
-                            },
+        if "error" in stats:
+            for param in query["graphs"]:
+                await self._access.async_request(
+                    "reporting/get_data",
+                    method="post",
+                    json={
+                        "graphs": [param],
+                        "reporting_query": {
+                            "start": "now-90s",
+                            "end": "now-30s",
+                            "aggregate": True,
                         },
-                    )
-                    if not isinstance(graph_retry, list) and "error" in stats:
-                        self._systemstats_errored.append(param["name"])
-
-                _LOGGER.warning(
-                    "Fetching following graphs failed, check your NAS: %s",
-                    self._systemstats_errored,
+                    },
                 )
-                await self.async_get_stats(items)
+                if "error" in stats:
+                    self._systemstats_errored.append(param["name"])
+
+            _LOGGER.warning(
+                "Fetching following graphs failed, check your NAS: %s",
+                self._systemstats_errored,
+            )
+            await self.async_get_stats(items)
 
         return stats
 
-    async def async_get_services(self) -> None:
+    async def async_get_services(self) -> dict[str, Any]:
         """Get service info from TrueNAS."""
-        source = await self._access.async_request("service")
-        self.services = parse_api(
-            data={},
-            source=source,
-            key="service",
-            vals=[
-                {"name": "id", "default": 0},
-                {"name": "service"},
-                {"name": "enable", "default": False},
-                {"name": "state"},
-            ],
-        )
-
+        self.services = await async_attributes(Service, self._access)
         for uid, detail in self.services.items():
             self.services[uid]["running"] = detail.get("state") == "RUNNING"
-
         self.data["services"] = self.services
-        self._sub.notify(Events.SERVICES)
+        self._sub.notify(Events.SERVICES.value)
         return self.services
 
-    async def async_get_pools(self) -> None:
+    async def async_get_pools(self) -> dict[str, Any]:
         """Get pools from TrueNAS."""
-        source = await self._access.async_request("pool")
-        self.pools = parse_api(
-            data={},
-            source=source,
-            key="guid",
-            vals=[
-                {"name": "guid", "default": 0},
-                {"name": "id", "default": 0},
-                {"name": "name"},
-                {"name": "path"},
-                {"name": "status"},
-                {"name": "healthy", "default": False},
-                {"name": "is_decrypted", "default": False},
-                {"name": "autotrim", "source": "autotrim/parsed", "default": False},
-                {"name": "scan_function", "source": "scan/function"},
-                {"name": "scrub_state", "source": "scan/state"},
-                {
-                    "name": "scrub_start",
-                    "source": "scan/start_time/$date",
-                    "default": 0,
-                    "convert": "utc_from_timestamp",
-                },
-                {
-                    "name": "scrub_end",
-                    "source": "scan/end_time/$date",
-                    "default": 0,
-                    "convert": "utc_from_timestamp",
-                },
-                {
-                    "name": "scrub_secs_left",
-                    "source": "scan/total_secs_left",
-                    "default": 0,
-                },
-            ],
-        )
-
-        source = await self._access.async_request("boot/get_state")
-        self.pools = parse_api(
-            data=self.pools,
-            source=source,
-            key="guid",
-            vals=[
-                {"name": "guid", "default": 0},
-                {"name": "id", "default": 0},
-                {"name": "name"},
-                {"name": "path"},
-                {"name": "status"},
-                {"name": "healthy", "default": False},
-                {"name": "is_decrypted", "default": False},
-                {"name": "autotrim", "source": "autotrim/parsed", "default": False},
-                {"name": "root_dataset"},
-                {
-                    "name": "root_dataset_available",
-                    "source": "root_dataset/properties/available/parsed",
-                    "default": 0,
-                },
-                {
-                    "name": "root_dataset_used",
-                    "source": "root_dataset/properties/used/parsed",
-                    "default": 0,
-                },
-                {"name": "scan_function", "source": "scan/function"},
-                {"name": "scrub_state", "source": "scan/state"},
-                {
-                    "name": "scrub_start",
-                    "source": "scan/start_time/$date",
-                    "default": 0,
-                    "convert": "utc_from_timestamp",
-                },
-                {
-                    "name": "scrub_end",
-                    "source": "scan/end_time/$date",
-                    "default": 0,
-                    "convert": "utc_from_timestamp",
-                },
-                {
-                    "name": "scrub_secs_left",
-                    "source": "scan/total_secs_left",
-                    "default": 0,
-                },
-            ],
-        )
+        self.pools = await async_attributes(Pool, self._access)
+        boot = await async_attributes(Pool, self._access)
+        self.pools.update(boot)
 
         # Process pools
         dataset_available = {}
@@ -417,78 +688,21 @@ class TrueNASAPI(object):
                 self.pools[uid].pop("root_dataset")
 
         self.data["pools"] = self.pools
-        self._sub.notify(Events.POOLS)
+        self._sub.notify(Events.POOLS.value)
         return self.pools
 
-    async def async_get_datasets(self) -> None:
+    async def async_get_datasets(self) -> dict[str, Any]:
         """Get datasets from TrueNAS."""
-        source = await self._access.async_request("pool/dataset")
-        self.datasets = parse_api(
-            data={},
-            source=source,
-            key="id",
-            vals=[
-                {"name": "id"},
-                {"name": "type"},
-                {"name": "name"},
-                {"name": "pool"},
-                {"name": "mountpoint"},
-                {"name": "comments", "source": "comments/parsed", "default": ""},
-                {
-                    "name": "deduplication",
-                    "source": "deduplication/parsed",
-                    "default": False,
-                },
-                {"name": "atime", "source": "atime/parsed", "default": False},
-                {"name": "casesensitivity", "source": "casesensitivity/parsed"},
-                {"name": "checksum", "source": "checksum/parsed"},
-                {"name": "exec", "source": "exec/parsed", "default": False},
-                {"name": "sync", "source": "sync/parsed"},
-                {"name": "compression", "source": "compression/parsed"},
-                {"name": "compressratio", "source": "compressratio/parsed"},
-                {"name": "quota", "source": "quota/parsed"},
-                {"name": "copies", "source": "copies/parsed", "default": 0},
-                {"name": "readonly", "source": "readonly/parsed", "default": False},
-                {"name": "recordsize", "source": "recordsize/parsed", "default": 0},
-                {
-                    "name": "encryption_algorithm",
-                    "source": "encryption_algorithm/parsed",
-                },
-                {"name": "used", "source": "used/parsed", "default": 0},
-                {"name": "available", "source": "available/parsed", "default": 0},
-            ],
-        )
-
+        self.datasets = await async_attributes(Datasets, self._access)
         for uid, vals in self.datasets.items():
             self.datasets[uid]["used_gb"] = b2gib(vals.get("used", 0))
-
         self.data["datasets"] = self.datasets
-        self._sub.notify(Events.DATASETS)
+        self._sub.notify(Events.DATASETS.value)
         return self.datasets
 
-    async def async_get_disks(self) -> None:
+    async def async_get_disks(self) -> dict[str, Any]:
         """Get disks from TrueNAS."""
-        source = await self._access.async_request("disk")
-        self.disks = parse_api(
-            data={},
-            source=source,
-            key="devname",
-            vals=[
-                {"name": "name"},
-                {"name": "devname"},
-                {"name": "serial"},
-                {"name": "size"},
-                {"name": "hddstandby"},
-                {"name": "hddstandby_force", "default": False},
-                {"name": "advpowermgmt"},
-                {"name": "acousticlevel"},
-                {"name": "togglesmart", "default": False},
-                {"name": "model"},
-                {"name": "rotationrate"},
-                {"name": "type"},
-            ],
-        )
-
+        self.disks = await async_attributes(Disk, self._access)
         # Get disk temperatures
         temperatures = await self._access.async_request(
             "disk/temperatures", method="post", json={"names": []}
@@ -497,224 +711,115 @@ class TrueNASAPI(object):
             self.disks[uid]["temperature"] = temperatures.get(uid, 0)
 
         self.data["disks"] = self.disks
-        self._sub.notify(Events.DISKS)
+        self._sub.notify(Events.DISKS.value)
         return self.disks
 
-    async def async_get_jails(self) -> None:
+    async def async_get_jails(self) -> dict[str, Any] | None:
         """Get jails from TrueNAS."""
         if self._is_scale is False:
-            source = await self._access.async_request("jail")
-            self.jails = parse_api(
-                data={},
-                source=source,
-                key="id",
-                vals=[
-                    {"name": "id"},
-                    {"name": "comment"},
-                    {"name": "host_hostname"},
-                    {"name": "jail_zfs_dataset"},
-                    {"name": "last_started"},
-                    {"name": "ip4_addr"},
-                    {"name": "ip6_addr"},
-                    {"name": "release"},
-                    {"name": "state", "default": False},
-                    {"name": "type"},
-                    {"name": "plugin_name"},
-                ],
-            )
+            self.jails = await async_attributes(Disk, self._access)
             self.data["jails"] = self.jails
-            self._sub.notify(Events.JAILS)
+            self._sub.notify(Events.JAILS.value)
             return self.jails
+        return None
 
-    async def async_get_virtualmachines(self) -> None:
+    async def async_get_virtualmachines(self) -> dict[str, Any]:
         """Get VMs from TrueNAS."""
-        source = await self._access.async_request("vm")
-        self.virtualmachines = parse_api(
-            data={},
-            source=source,
-            key="name",
-            vals=[
-                {"name": "id", "default": 0},
-                {"name": "name"},
-                {"name": "description"},
-                {"name": "vcpus", "default": 0},
-                {"name": "memory", "default": 0},
-                {"name": "autostart", "default": False},
-                {"name": "cores", "default": 0},
-                {"name": "threads", "default": 0},
-                {"name": "state", "source": "status/state"},
-            ],
-        )
-
+        self.virtualmachines = await async_attributes(VirtualMachine, self._access)
         for uid, detail in self.virtualmachines.items():
             self.virtualmachines[uid]["running"] = detail.get("state") == "RUNNING"
-
         self.data["virtualmachines"] = self.virtualmachines
-        self._sub.notify(Events.VMS)
+        self._sub.notify(Events.VMS.value)
         return self.virtualmachines
 
-    async def async_get_cloudsync(self) -> None:
+    async def async_get_cloudsync(self) -> dict[str, Any]:
         """Get cloudsync from TrueNAS."""
-        source = await self._access.async_request("cloudsync")
-        self.cloudsync = parse_api(
-            data={},
-            source=source,
-            key="id",
-            vals=[
-                {"name": "id"},
-                {"name": "description"},
-                {"name": "direction"},
-                {"name": "path"},
-                {"name": "enabled", "default": False},
-                {"name": "transfer_mode"},
-                {"name": "snapshot", "default": False},
-                {"name": "state", "source": "job/state"},
-                {
-                    "name": "time_started",
-                    "source": "job/time_started/$date",
-                    "default": 0,
-                    "convert": "utc_from_timestamp",
-                },
-                {
-                    "name": "time_finished",
-                    "source": "job/time_finished/$date",
-                    "default": 0,
-                    "convert": "utc_from_timestamp",
-                },
-                {"name": "job_percent", "source": "job/progress/percent", "default": 0},
-                {"name": "job_description", "source": "job/progress/description"},
-            ],
-        )
+        self.cloudsync = await async_attributes(CloudSync, self._access)
         self.data["cloudsync"] = self.cloudsync
-        self._sub.notify(Events.CLOUD)
+        self._sub.notify(Events.CLOUD.value)
         return self.cloudsync
 
-    async def async_get_replications(self) -> None:
+    async def async_get_replications(self) -> dict[str, Any]:
         """Get replication from TrueNAS."""
-        source = await self._access.async_request("replication")
-        self.replications = parse_api(
-            data={},
-            source=source,
-            key="name",
-            vals=[
-                {"name": "id", "default": 0},
-                {"name": "name"},
-                {"name": "source_datasets"},
-                {"name": "target_dataset"},
-                {"name": "recursive", "default": False},
-                {"name": "enabled", "default": False},
-                {"name": "direction"},
-                {"name": "transport"},
-                {"name": "auto", "default": False},
-                {"name": "retention_policy"},
-                {"name": "state", "source": "job/state"},
-                {
-                    "name": "time_started",
-                    "source": "job/time_started/$date",
-                    "default": 0,
-                    "convert": "utc_from_timestamp",
-                },
-                {
-                    "name": "time_finished",
-                    "source": "job/time_finished/$date",
-                    "default": 0,
-                    "convert": "utc_from_timestamp",
-                },
-                {"name": "job_percent", "source": "job/progress/percent", "default": 0},
-                {"name": "job_description", "source": "job/progress/description"},
-            ],
-        )
-
+        self.replications = await async_attributes(Replication, self._access)
         self.data["replications"] = self.replications
-        self._sub.notify(Events.REPLS)
+        self._sub.notify(Events.REPLS.value)
         return self.replications
 
-    async def async_get_snapshottasks(self) -> None:
+    async def async_get_snapshottasks(self) -> dict[str, Any]:
         """Get replication from TrueNAS."""
-        source = await self._access.async_request("pool/snapshottask")
-        self.snapshots = parse_api(
-            data={},
-            source=source,
-            key="id",
-            vals=[
-                {"name": "id", "default": 0},
-                {"name": "dataset"},
-                {"name": "recursive", "default": False},
-                {"name": "lifetime_value", "default": 0},
-                {"name": "lifetime_unit"},
-                {"name": "enabled", "default": False},
-                {"name": "naming_schema"},
-                {"name": "allow_empty", "default": False},
-                {"name": "vmware_sync", "default": False},
-                {"name": "state", "source": "state/state"},
-                {
-                    "name": "datetime",
-                    "source": "state/datetime/$date",
-                    "default": 0,
-                    "convert": "utc_from_timestamp",
-                },
-            ],
-        )
+        self.snapshots = await async_attributes(Snapshottask, self._access)
         self.data["snapshots"] = self.snapshots
-        self._sub.notify(Events.SNAPS)
+        self._sub.notify(Events.SNAPS.value)
         return self.snapshots
 
-    async def async_get_charts(self) -> None:
+    async def async_get_charts(self) -> dict[str, Any]:
         """Get Charts from TrueNAS."""
-        source = await self._access.async_request("chart/release")
-        self.charts = parse_api(
-            data={},
-            source=source,
-            key="id",
-            vals=[
-                {"name": "id", "default": 0},
-                {"name": "name"},
-                {"name": "human_version"},
-                {"name": "update_available"},
-                {"name": "container_images_update_available"},
-                {"name": "portal", "source": "portals/open"},
-                {"name": "status"},
-            ],
-        )
+        self.charts = await async_attributes(Charts, self._access)
         for uid, detail in self.charts.items():
             self.charts[uid]["running"] = detail.get("status") == "ACTIVE"
-
         self.data["charts"] = self.charts
-        self._sub.notify(Events.CHARTS)
+        self._sub.notify(Events.CHARTS.value)
         return self.charts
 
-    def subscribe(self, _callback: Callable, *args: Any):
+    async def async_get_smartdisks(self) -> dict[str, Any]:
+        """Get smartdisk from TrueNAS."""
+        self.smarts = await async_attributes(Smart, self._access)
+        self.data["smarts"] = self.smarts
+        self._sub.notify(Events.SMARTS.value)
+        return self.smarts
+
+    async def async_get_alerts(self) -> dict[str, Any]:
+        """Get smartdisk from TrueNAS."""
+        self.alerts = await async_attributes(Alerts, self._access)
+        self.data["alerts"] = self.alerts
+        self._sub.notify(Events.ALERTS.value)
+        return self.alerts
+
+    def subscribe(self, _callback: str, *args: Any) -> None:
         """Subscribe event."""
         self._sub.subscribe(_callback, *args)
 
-    def unsubscribe(self, _callback: Callable, *args: Any):
+    def unsubscribe(self, _callback: str, *args: Any) -> None:
         """Unsubscribe event."""
         self._sub.subscribe(_callback, *args)
 
-    async def async_close(self) -> None:
-        """Close session."""
-        await self.session.close()
-
-    async def async_update_all(self) -> None:
+    async def async_update_all(self) -> dict[str, Any]:
         """Update all datas."""
-        await self.async_get_system()
-        await self.async_get_interfaces()
-        await self.async_get_services()
-        await self.async_get_datasets()
-        await self.async_get_pools()
-        await self.async_get_disks()
-        await self.async_get_jails()
-        await self.async_get_virtualmachines()
-        await self.async_get_cloudsync()
-        await self.async_get_replications()
-        await self.async_get_snapshottasks()
-        await self.async_get_charts()
-        self._sub.notify(Events.ALL)
+        for event in Events:
+            try:
+                if event.name != "ALL":
+                    fnc = getattr(self, f"async_get_{event.value}")
+                    await fnc()
+            except TruenasException as error:
+                _LOGGER.error(error)
+        self._sub.notify(Events.ALL.value)
         return self.data
 
     async def async_is_alive(self) -> bool:
         """Check connection."""
         result = await self._access.async_request("core/ping")
-        if "pong" not in result:
-            return False
-        return True
+        return "pong" in result
+
+    async def async_close(self) -> None:
+        """Close open client session."""
+        if self._access.close_session and self._access.session:
+            await self._access.session.close()
+
+    async def __aenter__(self) -> Self:
+        """Async enter.
+
+        Returns
+        -------
+            The LaMetricCloud object.
+        """
+        return self
+
+    async def __aexit__(self, *_exc_info: object) -> None:
+        """Async exit.
+
+        Args:
+        ----
+            _exc_info: Exec type.
+        """
+        await self.async_close()

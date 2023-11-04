@@ -1,10 +1,15 @@
 """TrueNAS API."""
 from __future__ import annotations
 
+import asyncio
+import socket
 from logging import getLogger
 from typing import Any
 
-from aiohttp import ClientError, ClientSession
+import aiohttp  # [import-error]
+
+from .exceptions import TruenasException
+from .helper import json_loads
 
 _LOGGER = getLogger(__name__)
 
@@ -16,52 +21,58 @@ class TrueNASConnect(object):
 
     def __init__(
         self,
-        session: ClientSession,
         host: str,
         token: str,
         use_ssl: bool,
         verify_ssl: bool,
+        timeout: int = 120,
+        session: aiohttp.ClientSession | None = None,
     ) -> None:
         """Initialize the TrueNAS API."""
         self._protocol = "https" if use_ssl else "http"
-        self._session = session
         self._host = host
         self._url = f"{self._protocol}://{host}/{API_PATH}"
         self._token = token
         self._verify_ssl = verify_ssl
+        self._timeout = timeout
 
-    async def async_request(
-        self, path: str, method: str = "GET", **kwargs: Any
-    ) -> dict[str, Any]:
+        self.session = session
+        self.close_session = False
+
+    async def async_request(self, path: str, method: str = "GET", **kwargs: Any) -> Any:
         """Make a request."""
-        if headers := kwargs.pop("headers", {}):
-            headers = dict(headers)
+        if self.session is None:
+            self.session = aiohttp.ClientSession()
+            self.close_session = True
 
+        headers = kwargs.pop("headers", {})
         headers.update(
             {
-                "Content-Type": "application/json",
+                "Accept": "application/json",
                 "Authorization": f"Bearer {self._token}",
             }
         )
         try:
-            _LOGGER.debug("TrueNAS %s query: %s", self._host, path)
-            response = await self._session.request(
-                method,
-                f"{self._url}/{path}",
-                **kwargs,
-                headers=headers,
-                verify_ssl=self._verify_ssl,
-            )
-            if response.status == 200:
-                data: dict[str, Any] = await response.json()
-                _LOGGER.debug("TrueNAS %s query response: %s", self._host, data)
-                return data
-            else:
-                _LOGGER.error("%s %s", response.status, response.reason)
-                return {"error": f"{response.status} {response.reason}"}
-        except ClientError as error:
-            _LOGGER.error(error)
-            return {"error": str(error)}
-        except Exception as error:  # pylint: disable=broad-exception-caught
-            _LOGGER.error(error)
-            return {"error": str(error)}
+            _LOGGER.debug("TrueNAS %s query: %s (%s)", self._host, path, method)
+            async with asyncio.timeout(self._timeout):
+                response = await self.session.request(
+                    method,
+                    f"{self._url}/{path}",
+                    **kwargs,
+                    headers=headers,
+                    verify_ssl=self._verify_ssl,
+                )
+                response.raise_for_status()
+        except (asyncio.CancelledError, asyncio.TimeoutError) as error:
+            raise TruenasException("Timeout occurred while connecting.") from error
+        except (aiohttp.ClientError, socket.gaierror) as error:
+            raise TruenasException(
+                f"Error occurred while communicating with Truenas. ({error})"
+            ) from error
+
+        try:
+            data: Any = await response.json(loads=json_loads)
+            _LOGGER.debug("TrueNAS %s query response: %s", self._host, data)
+            return data
+        except ValueError as error:
+            raise TruenasException(error) from error
