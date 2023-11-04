@@ -12,7 +12,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy to PyPi
-    environment: deploy
+    environment: release
     permissions:
       id-token: write
     steps:
