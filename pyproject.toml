@@ -1,12 +1,41 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name        = "truenaspy"
+version     = "replace_by_workflow"
+license     = {text = "GPL-3"}
+description = "Provides asynchronous authentication and access to Truenas devices"
+readme      = "README.md"
+authors     = [
+    {name = "Cyr-ius", email = "cyr-ius@ipocus.net"}
+]
+keywords    = ["async", "truenas", "scale", "core"]
+classifiers = [
+    "Programming Language :: Python",
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Topic :: Home Automation",
+]
+requires-python = ">=3.11.0"
+dependencies    = [
+    "aiohttp>=3.8.1",
+]
+
+[tool.setuptools]
+platforms = ["any"]
+zip-safe  = false
+include-package-data = true
+
 [tool.isort]
 # https://github.com/PyCQA/isort/wiki/isort-Settings
 profile = "black"
-
-[tool.pylint."MESSAGES CONTROL"]
-disable = [
-    "dangerous-default-value",
-    "invalid-name",
-]
 
 [tool.mypy]
 python_version = "3.11"
