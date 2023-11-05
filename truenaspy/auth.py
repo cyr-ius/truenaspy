@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import socket
+from dataclasses import dataclass, field
 from logging import getLogger
 from typing import Any
 
@@ -16,27 +17,24 @@ _LOGGER = getLogger(__name__)
 API_PATH = "api/v2.0"
 
 
-class Auth(object):
+@dataclass
+class Auth:
     """Handle all communication with TrueNAS."""
 
-    def __init__(
-        self,
-        host: str,
-        token: str,
-        use_ssl: bool,
-        verify_ssl: bool,
-        timeout: int = 120,
-        session: ClientSession | None = None,
-    ) -> None:
-        """Initialize the TrueNAS API."""
-        self._host = host
-        self._protocol = "https" if use_ssl else "http"
-        self._timeout = timeout
-        self._token = token
-        self._url = f"{self._protocol}://{host}/{API_PATH}"
-        self._verify_ssl = verify_ssl
-        self._close_session = False
-        self.session = session
+    host: str
+    api_key: str
+    use_ssl: bool
+    verify_ssl: bool
+    timeout: int = 120
+    session: ClientSession | None = None
+
+    _protocol: str = field(init=False)
+    _close_session: bool = False
+    _url: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._protocol: str = "https" if self.use_ssl else "http"
+        self._url = f"{self._protocol}://{self.host}/{API_PATH}"
 
     async def async_request(self, path: str, method: str = "GET", **kwargs: Any) -> Any:
         """Make a request."""
@@ -48,18 +46,18 @@ class Auth(object):
         headers.update(
             {
                 "Accept": "application/json",
-                "Authorization": f"Bearer {self._token}",
+                "Authorization": f"Bearer {self.api_key}",
             }
         )
         try:
-            _LOGGER.debug("TrueNAS %s query: %s (%s)", self._host, path, method)
-            async with asyncio.timeout(self._timeout):
+            _LOGGER.debug("TrueNAS %s query: %s (%s)", self.host, path, method)
+            async with asyncio.timeout(self.timeout):
                 response = await self.session.request(
                     method,
                     f"{self._url}/{path}",
                     **kwargs,
                     headers=headers,
-                    verify_ssl=self._verify_ssl,
+                    verify_ssl=self.verify_ssl,
                 )
                 response.raise_for_status()
         except (asyncio.CancelledError, asyncio.TimeoutError) as error:
@@ -77,7 +75,7 @@ class Auth(object):
 
         try:
             data: Any = await response.json(loads=json_loads)
-            _LOGGER.debug("TrueNAS %s query response: %s", self._host, data)
+            _LOGGER.debug("TrueNAS %s query response: %s", self.host, data)
             return data
         except ValueError as error:
             msg = "The Truenas API response is not formatted correctly"
