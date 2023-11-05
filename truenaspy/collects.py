@@ -61,7 +61,7 @@ class Service(Collects):
     key = "service"
     attrs = [
         FieldType(name="id"),
-        FieldType(name="name"),
+        FieldType(name="service"),
         FieldType(name="enable", default=False),
         FieldType(name="state"),
     ]
