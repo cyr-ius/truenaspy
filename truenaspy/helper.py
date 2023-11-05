@@ -71,25 +71,25 @@ def as_local(dattim: datetime) -> datetime:
     return dattim.astimezone(local_timezone)
 
 
-def json_parser(obj: dict[str, Any]) -> dict[str, Any]:
-    """parse json."""
-    for key, val in obj.items():
-        if val in ("on", "On", "ON", "yes", "Yes", "YES", "up", "Up", "UP"):
-            obj[key] = True
-        if val in ("off", "Off", "OFF", "no", "No", "NO", "down", "Down", "DOWN"):
-            obj[key] = True
-        if isinstance(val, float):
-            obj[key] = round(float(val), 2)
-        if isinstance(val, str):
-            obj[key] = str(val)[:255]
-        if isinstance(val, dict):
-            obj[key] = json_parser(val)
-    return ExtendedDict(obj)
-
-
 def json_loads(response: str | bytes) -> ExtendedDict:
     """Json load."""
-    data_dict: ExtendedDict = json.loads(response, object_hook=json_parser)
+
+    def _parser(obj: dict[str, Any]) -> dict[str, Any]:
+        """parse json."""
+        for key, val in obj.items():
+            if val in ("on", "On", "ON", "yes", "Yes", "YES", "up", "Up", "UP"):
+                obj[key] = True
+            if val in ("off", "Off", "OFF", "no", "No", "NO", "down", "Down", "DOWN"):
+                obj[key] = True
+            if isinstance(val, float):
+                obj[key] = round(float(val), 2)
+            if isinstance(val, str):
+                obj[key] = str(val)[:255]
+            if isinstance(val, dict):
+                obj[key] = _parser(val)
+        return ExtendedDict(obj)
+
+    data_dict: ExtendedDict = json.loads(response, object_hook=_parser)
     return data_dict
 
 
