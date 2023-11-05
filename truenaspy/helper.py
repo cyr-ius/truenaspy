@@ -74,7 +74,7 @@ def as_local(dattim: datetime) -> datetime:
 def json_loads(response: str | bytes) -> Any:
     """Json load."""
 
-    def _parser(obj: dict[str, Any]) -> dict[str, Any]:
+    def _parser(obj: dict[str, Any]) -> ExtendedDict:
         """parse json."""
         for key, val in obj.items():
             if val in ("on", "On", "ON", "yes", "Yes", "YES", "up", "Up", "UP"):
