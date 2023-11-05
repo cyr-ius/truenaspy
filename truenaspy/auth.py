@@ -6,9 +6,9 @@ import socket
 from logging import getLogger
 from typing import Any
 
-import aiohttp  # [import-error]
+from aiohttp import ClientError, ClientResponseError, ClientSession
 
-from .exceptions import TruenasException
+from .exceptions import TruenasAuthenticationError, TruenasConnectionError, TruenasError
 from .helper import json_loads
 
 _LOGGER = getLogger(__name__)
@@ -16,7 +16,7 @@ _LOGGER = getLogger(__name__)
 API_PATH = "api/v2.0"
 
 
-class TrueNASConnect(object):
+class Auth(object):
     """Handle all communication with TrueNAS."""
 
     def __init__(
@@ -26,24 +26,23 @@ class TrueNASConnect(object):
         use_ssl: bool,
         verify_ssl: bool,
         timeout: int = 120,
-        session: aiohttp.ClientSession | None = None,
+        session: ClientSession | None = None,
     ) -> None:
         """Initialize the TrueNAS API."""
-        self._protocol = "https" if use_ssl else "http"
         self._host = host
-        self._url = f"{self._protocol}://{host}/{API_PATH}"
-        self._token = token
-        self._verify_ssl = verify_ssl
+        self._protocol = "https" if use_ssl else "http"
         self._timeout = timeout
-
+        self._token = token
+        self._url = f"{self._protocol}://{host}/{API_PATH}"
+        self._verify_ssl = verify_ssl
+        self._close_session = False
         self.session = session
-        self.close_session = False
 
     async def async_request(self, path: str, method: str = "GET", **kwargs: Any) -> Any:
         """Make a request."""
         if self.session is None:
-            self.session = aiohttp.ClientSession()
-            self.close_session = True
+            self.session = ClientSession()
+            self._close_session = True
 
         headers = kwargs.pop("headers", {})
         headers.update(
@@ -64,15 +63,27 @@ class TrueNASConnect(object):
                 )
                 response.raise_for_status()
         except (asyncio.CancelledError, asyncio.TimeoutError) as error:
-            raise TruenasException("Timeout occurred while connecting.") from error
-        except (aiohttp.ClientError, socket.gaierror) as error:
-            raise TruenasException(
-                f"Error occurred while communicating with Truenas. ({error})"
-            ) from error
+            msg = "Timeout occurred while connecting to the Truenas API"
+            raise TruenasConnectionError(msg) from error
+        except ClientResponseError as error:
+            if error.status in [401, 403]:
+                msg = "Authentication to the Truenas API failed"
+                raise TruenasAuthenticationError(msg) from error
+            msg = "Error occurred while communicating with Truenas."
+            raise TruenasError(msg) from error
+        except (ClientError, socket.gaierror) as error:
+            msg = "Error occurred while communicating with Truenas."
+            raise TruenasError(msg) from error
 
         try:
             data: Any = await response.json(loads=json_loads)
             _LOGGER.debug("TrueNAS %s query response: %s", self._host, data)
             return data
         except ValueError as error:
-            raise TruenasException(error) from error
+            msg = "The Truenas API response is not formatted correctly"
+            raise TruenasError(error) from error
+
+    async def async_close(self) -> None:
+        """Close open client session."""
+        if self.session and self._close_session:
+            await self.session.close()

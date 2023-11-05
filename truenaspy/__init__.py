@@ -1,8 +1,14 @@
 # -*- coding:utf-8 -*-
 
-"""TrueNASpy package."""
-from .api import TrueNASAPI
-from .exceptions import TruenasException
+"""Truenaspy package."""
+from .api import TruenasClient
+from .exceptions import TruenasAuthenticationError, TruenasConnectionError, TruenasError
 from .subscription import Events
 
-__all__ = ["TrueNASAPI", "TruenasException", "Events"]
+__all__ = [
+    "TruenasClient",
+    "TruenasError",
+    "TruenasAuthenticationError",
+    "TruenasConnectionError",
+    "Events",
+]
