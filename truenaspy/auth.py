@@ -67,10 +67,10 @@ class Auth:
             if error.status in [401, 403]:
                 msg = "Authentication to the Truenas API failed"
                 raise TruenasAuthenticationError(msg) from error
-            msg = "Error occurred while communicating with Truenas."
+            msg = f"Error occurred while communicating with Truenas (RC {error.status})"
             raise TruenasError(msg) from error
         except (ClientError, socket.gaierror) as error:
-            msg = "Error occurred while communicating with Truenas."
+            msg = "Error occurred while communicating with Truenas"
             raise TruenasError(msg) from error
 
         try:
