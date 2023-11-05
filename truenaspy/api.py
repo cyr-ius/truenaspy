@@ -229,32 +229,36 @@ class TruenasClient(object):
             if param["name"] in self._systemstats_errored:
                 query["graphs"].remove(param)
 
-        stats = await self._access.async_request(
-            "reporting/get_data", method="post", json=query
-        )
-
-        if "error" in stats:
-            for param in query["graphs"]:
-                await self._access.async_request(
-                    "reporting/get_data",
-                    method="post",
-                    json={
-                        "graphs": [param],
-                        "reporting_query": {
-                            "start": "now-90s",
-                            "end": "now-30s",
-                            "aggregate": True,
-                        },
-                    },
-                )
-                if "error" in stats:
-                    self._systemstats_errored.append(param["name"])
-
-            _LOGGER.warning(
-                "Fetching following graphs failed, check your NAS: %s",
-                self._systemstats_errored,
+        stats = []
+        try:
+            stats = await self._access.async_request(
+                "reporting/get_data", method="post", json=query
             )
-            await self.async_get_stats(items)
+
+            if "error" in stats:
+                for param in query["graphs"]:
+                    await self._access.async_request(
+                        "reporting/get_data",
+                        method="post",
+                        json={
+                            "graphs": [param],
+                            "reporting_query": {
+                                "start": "now-90s",
+                                "end": "now-30s",
+                                "aggregate": True,
+                            },
+                        },
+                    )
+                    if "error" in stats:
+                        self._systemstats_errored.append(param["name"])
+
+                _LOGGER.warning(
+                    "Fetching following graphs failed, check your NAS: %s",
+                    self._systemstats_errored,
+                )
+                await self.async_get_stats(items)
+        except TruenasError as error:
+            _LOGGER.error(error)
 
         return stats
 
