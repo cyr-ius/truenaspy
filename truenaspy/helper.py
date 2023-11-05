@@ -71,7 +71,7 @@ def as_local(dattim: datetime) -> datetime:
     return dattim.astimezone(local_timezone)
 
 
-def json_loads(response: str | bytes) -> ExtendedDict:
+def json_loads(response: str | bytes) -> Any:
     """Json load."""
 
     def _parser(obj: dict[str, Any]) -> dict[str, Any]:
@@ -89,8 +89,7 @@ def json_loads(response: str | bytes) -> ExtendedDict:
                 obj[key] = _parser(val)
         return ExtendedDict(obj)
 
-    data_dict: ExtendedDict = json.loads(response, object_hook=_parser)
-    return data_dict
+    return json.loads(response, object_hook=_parser)
 
 
 def systemstats_process(
