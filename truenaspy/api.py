@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from logging import getLogger
 from typing import Any, Self
 
-from aiohttp import ClientSession
+from aiohttp import ClientRequest, ClientSession
 
 from .auth import Auth
 from .collects import (
@@ -60,6 +60,7 @@ class TruenasClient(object):
             (self.async_update_all, self.async_is_alive), scan_intervall
         )
         self._systemstats_errored: list[str] = []
+        self.query: ClientRequest = self._access.async_request
         self.system: dict[str, Any] = {}
         self.interfaces: dict[str, Any] = {}
         self.stats: dict[str, Any] = {}
