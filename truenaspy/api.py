@@ -10,6 +10,7 @@ from aiohttp import ClientSession
 from .auth import Auth
 from .collects import (
     Alerts,
+    Boot,
     Charts,
     CloudSync,
     Datasets,
@@ -63,22 +64,22 @@ class TruenasClient(object):
         self.query: Callable[
             [str, str, Any], Coroutine[Any, Any, Any]
         ] = self._access.async_request  # type: ignore[assignment]
-        self.system: dict[str, Any] = {}
-        self.interfaces: dict[str, Any] = {}
-        self.stats: dict[str, Any] = {}
-        self.services: dict[str, Any] = {}
-        self.pools: dict[str, Any] = {}
-        self.datasets: dict[str, Any] = {}
-        self.disks: dict[str, Any] = {}
-        self.jails: dict[str, Any] = {}
-        self.virtualmachines: dict[str, Any] = {}
-        self.cloudsync: dict[str, Any] = {}
-        self.replications: dict[str, Any] = {}
-        self.snapshots: dict[str, Any] = {}
-        self.charts: dict[str, Any] = {}
+        self.alerts: list[dict[str, Any]] = []
+        self.charts: list[dict[str, Any]] = []
+        self.cloudsync: list[dict[str, Any]] = []
         self.data: dict[str, Any] = {}
-        self.smarts: dict[str, Any] = {}
-        self.alerts: dict[str, Any] = {}
+        self.datasets: list[dict[str, Any]] = []
+        self.disks: list[dict[str, Any]] = []
+        self.interfaces: list[dict[str, Any]] = []
+        self.jails: list[dict[str, Any]] = []
+        self.pools: list[dict[str, Any]] = []
+        self.replications: list[dict[str, Any]] = []
+        self.services: list[dict[str, Any]] = []
+        self.smarts: list[dict[str, Any]] = []
+        self.snapshots: list[dict[str, Any]] = []
+        self.stats: dict[str, Any] = {}
+        self.system: dict[str, Any] = {}
+        self.virtualmachines: list[dict[str, Any]] = []
 
     async def async_get_system(self) -> dict[str, Any]:
         """Get system info from TrueNAS."""
@@ -188,7 +189,7 @@ class TruenasClient(object):
         self._sub.notify(Events.SYSTEM.value)
         return self.system
 
-    async def async_get_interfaces(self) -> dict[str, Any]:
+    async def async_get_interfaces(self) -> list[dict[str, Any]]:
         """Get interface info from TrueNAS."""
         self.interfaces = await async_attributes(Interfaces, self._access)
         query = [{"name": "interface", "identifier": uid} for uid in self.interfaces]
@@ -260,72 +261,75 @@ class TruenasClient(object):
 
         return stats
 
-    async def async_get_services(self) -> dict[str, Any]:
+    async def async_get_services(self) -> list[dict[str, Any]]:
         """Get service info from TrueNAS."""
         self.services = await async_attributes(Service, self._access)
-        for uid, detail in self.services.items():
-            self.services[uid]["running"] = detail.get("state") == "RUNNING"
+        for service in self.services:
+            service.update({"running": service.get("state") == "RUNNING"})
         self.data["services"] = self.services
         self._sub.notify(Events.SERVICES.value)
         return self.services
 
-    async def async_get_pools(self) -> dict[str, Any]:
+    async def async_get_pools(self) -> list[dict[str, Any]]:
         """Get pools from TrueNAS."""
         self.pools = await async_attributes(Pool, self._access)
-        boot = await async_attributes(Pool, self._access)
-        self.pools.update(boot)
+        boot = await async_attributes(Boot, self._access)
+        self.pools.append(boot)
 
         # Process pools
         dataset_available = {}
         dataset_total = {}
-        for uid, vals in self.datasets.items():
-            if mountpoint := self.datasets[uid].get("mountpoint"):
-                available = vals.get("available", 0)
+        for dataset in self.datasets:
+            if mountpoint := dataset.get("mountpoint"):
+                available = dataset.get("available", 0)
                 dataset_available[mountpoint] = b2gib(available)
-                dataset_total[mountpoint] = b2gib(available + vals.get("used", 0))
+                dataset_total[mountpoint] = b2gib(available + dataset.get("used", 0))
 
-        for uid, vals in self.pools.items():
-            if path := dataset_available.get(vals["path"]):
-                self.pools[uid]["available_gib"] = path
+        for pool in self.pools:
+            if value := dataset_available.get(pool["path"]):
+                pool.update({"available_gib": value})
 
-            if path := dataset_total.get(vals["path"]):
-                self.pools[uid]["total_gib"] = path
+            if value := dataset_total.get(pool["path"]):
+                pool.update({"total_gib": value})
 
-            if vals["name"] in ["boot-pool", "freenas-boot"]:
-                self.pools[uid]["available_gib"] = b2gib(vals["root_dataset_available"])
-                self.pools[uid]["total_gib"] = b2gib(
-                    vals["root_dataset_available"] + vals["root_dataset_used"]
+            if pool["name"] in ["boot-pool", "freenas-boot"]:
+                pool.update({"available_gib": b2gib(pool["root_dataset_available"])})
+                pool.update(
+                    {
+                        "total_gib": b2gib(
+                            pool["root_dataset_available"] + pool["root_dataset_used"]
+                        )
+                    }
                 )
-                self.pools[uid].pop("root_dataset")
+                # self.pools[uid].pop("root_dataset")
 
         self.data["pools"] = self.pools
         self._sub.notify(Events.POOLS.value)
         return self.pools
 
-    async def async_get_datasets(self) -> dict[str, Any]:
+    async def async_get_datasets(self) -> list[dict[str, Any]]:
         """Get datasets from TrueNAS."""
         self.datasets = await async_attributes(Datasets, self._access)
-        for uid, vals in self.datasets.items():
-            self.datasets[uid]["used_gb"] = b2gib(vals.get("used", 0))
+        for dataset in self.datasets:
+            dataset.update({"used_gb": b2gib(dataset.get("used", 0))})
         self.data["datasets"] = self.datasets
         self._sub.notify(Events.DATASETS.value)
         return self.datasets
 
-    async def async_get_disks(self) -> dict[str, Any]:
+    async def async_get_disks(self) -> list[dict[str, Any]]:
         """Get disks from TrueNAS."""
         self.disks = await async_attributes(Disk, self._access)
         # Get disk temperatures
         temperatures = await self._access.async_request(
             "disk/temperatures", method="post", json={"names": []}
         )
-        for uid in self.disks:
-            self.disks[uid]["temperature"] = temperatures.get(uid, 0)
-
+        for disk in self.disks:
+            disk.update({"temperature": temperatures.get(disk["name"], 0)})
         self.data["disks"] = self.disks
         self._sub.notify(Events.DISKS.value)
         return self.disks
 
-    async def async_get_jails(self) -> dict[str, Any] | None:
+    async def async_get_jails(self) -> list[dict[str, Any]] | None:
         """Get jails from TrueNAS."""
         if self._is_scale is False:
             self.jails = await async_attributes(Jail, self._access)
@@ -334,53 +338,53 @@ class TruenasClient(object):
             return self.jails
         return None
 
-    async def async_get_virtualmachines(self) -> dict[str, Any]:
+    async def async_get_virtualmachines(self) -> list[dict[str, Any]]:
         """Get VMs from TrueNAS."""
         self.virtualmachines = await async_attributes(VirtualMachine, self._access)
-        for uid, detail in self.virtualmachines.items():
-            self.virtualmachines[uid]["running"] = detail.get("state") == "RUNNING"
+        for detail in self.virtualmachines:
+            detail.update({"running": detail.get("status") == "RUNNING"})
         self.data["virtualmachines"] = self.virtualmachines
         self._sub.notify(Events.VMS.value)
         return self.virtualmachines
 
-    async def async_get_cloudsync(self) -> dict[str, Any]:
+    async def async_get_cloudsync(self) -> list[dict[str, Any]]:
         """Get cloudsync from TrueNAS."""
         self.cloudsync = await async_attributes(CloudSync, self._access)
         self.data["cloudsync"] = self.cloudsync
         self._sub.notify(Events.CLOUD.value)
         return self.cloudsync
 
-    async def async_get_replications(self) -> dict[str, Any]:
+    async def async_get_replications(self) -> list[dict[str, Any]]:
         """Get replication from TrueNAS."""
         self.replications = await async_attributes(Replication, self._access)
         self.data["replications"] = self.replications
         self._sub.notify(Events.REPLS.value)
         return self.replications
 
-    async def async_get_snapshottasks(self) -> dict[str, Any]:
+    async def async_get_snapshottasks(self) -> list[dict[str, Any]]:
         """Get replication from TrueNAS."""
         self.snapshots = await async_attributes(Snapshottask, self._access)
         self.data["snapshots"] = self.snapshots
         self._sub.notify(Events.SNAPS.value)
         return self.snapshots
 
-    async def async_get_charts(self) -> dict[str, Any]:
+    async def async_get_charts(self) -> list[dict[str, Any]]:
         """Get Charts from TrueNAS."""
         self.charts = await async_attributes(Charts, self._access)
-        for uid, detail in self.charts.items():
-            self.charts[uid]["running"] = detail.get("status") == "ACTIVE"
+        for chart in self.charts:
+            chart.update({"running": chart.get("status") == "ACTIVE"})
         self.data["charts"] = self.charts
         self._sub.notify(Events.CHARTS.value)
         return self.charts
 
-    async def async_get_smartdisks(self) -> dict[str, Any]:
+    async def async_get_smartdisks(self) -> list[dict[str, Any]]:
         """Get smartdisk from TrueNAS."""
         self.smarts = await async_attributes(Smart, self._access)
         self.data["smarts"] = self.smarts
         self._sub.notify(Events.SMARTS.value)
         return self.smarts
 
-    async def async_get_alerts(self) -> dict[str, Any]:
+    async def async_get_alerts(self) -> list[dict[str, Any]]:
         """Get smartdisk from TrueNAS."""
         self.alerts = await async_attributes(Alerts, self._access)
         self.data["alerts"] = self.alerts
