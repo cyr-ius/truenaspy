@@ -112,11 +112,11 @@ def systemstats_process(
 
 async def async_attributes(identity: Type[Collects], session: ClientSession) -> Any:
     """Map attributes."""
+    attributes: list[dict[str, Any]] = []
     response = await session.async_request(
         path=identity.request, params=identity.params, method=identity.method
     )
     if response and identity.attrs:
-        attributes: list[dict[str, Any]] = []
         if not isinstance(response, list):
             attributes: dict[str, Any] = {}  # type: ignore[no-redef]
             response = [response]
