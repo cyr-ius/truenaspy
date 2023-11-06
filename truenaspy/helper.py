@@ -75,7 +75,7 @@ def json_loads(response: str | bytes) -> Any:
     """Json load."""
 
     def _float_parser(val: float | Any | None) -> float | None:
-        if isinstance(val, float):
+        if val:
             return round(float(val), 2)
         return None
 
