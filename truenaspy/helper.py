@@ -110,16 +110,15 @@ def systemstats_process(
                     fill_dict[item] = round(value, 2)
 
 
-async def async_attributes(
-    identity: Type[Collects], session: ClientSession
-) -> dict[str, Any]:
+async def async_attributes(identity: Type[Collects], session: ClientSession) -> Any:
     """Map attributes."""
-    attributes = {}
     response = await session.async_request(
         path=identity.request, params=identity.params, method=identity.method
     )
     if response and identity.attrs:
+        attributes: list[dict[str, Any]] = []
         if not isinstance(response, list):
+            attributes: dict[str, Any] = {}  # type: ignore[no-redef]
             response = [response]
         for item in response:
             attrs = {}
@@ -133,10 +132,9 @@ async def async_attributes(
                     except Exception as error:  # pylint: disable=broad-except
                         _LOGGER.error(error)
                 attrs.update({name: value})
-
-            if identity.key:
-                attributes.update({item.get(identity.key): attrs})
+            if isinstance(attributes, list):
+                attributes.append(attrs)
             else:
-                attributes.update(attrs)
+                attributes.update(attrs)  # type: ignore[unreachable]
 
     return attributes
