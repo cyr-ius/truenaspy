@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from logging import getLogger
-from typing import Any, Self
+from typing import Any, Callable, Coroutine, Self
 
-from aiohttp import ClientRequest, ClientSession
+from aiohttp import ClientSession
 
 from .auth import Auth
 from .collects import (
@@ -60,7 +60,9 @@ class TruenasClient(object):
             (self.async_update_all, self.async_is_alive), scan_intervall
         )
         self._systemstats_errored: list[str] = []
-        self.query: ClientRequest = self._access.async_request
+        self.query: Callable[
+            [str, str, Any], Coroutine[Any, Any, Any]
+        ] = self._access.async_request  # type: ignore[assignment]
         self.system: dict[str, Any] = {}
         self.interfaces: dict[str, Any] = {}
         self.stats: dict[str, Any] = {}
@@ -77,11 +79,6 @@ class TruenasClient(object):
         self.data: dict[str, Any] = {}
         self.smarts: dict[str, Any] = {}
         self.alerts: dict[str, Any] = {}
-
-    @property
-    async def connected(self) -> bool:
-        """Return connecting status."""
-        return await self.async_is_alive()
 
     async def async_get_system(self) -> dict[str, Any]:
         """Get system info from TrueNAS."""
