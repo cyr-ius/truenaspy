@@ -376,11 +376,12 @@ class Smart(Collects):
         FieldType(name="zfs_guid"),
         FieldType(name="devname"),
         FieldType(
-            name="smartdisk",
+            name="status",
             source="tests",
-            evaluation=lambda x: x[0].get("status")
+            default=False,
+            evaluation=lambda x: x[0].get("status") == "SUCCESS"
             if isinstance(x, list) and len(x) > 0
-            else "n/a",
+            else False,
         ),
     ]
 
