@@ -42,7 +42,6 @@ class Interfaces(Collects):
     """System."""
 
     request = "interface"
-    key = "name"
     attrs = [
         FieldType(name="id"),
         FieldType(name="name"),
@@ -58,7 +57,6 @@ class Service(Collects):
     """Service."""
 
     request = "service"
-    key = "service"
     attrs = [
         FieldType(name="id"),
         FieldType(name="service"),
@@ -71,7 +69,6 @@ class Pool(Collects):
     """Pool."""
 
     request = "pool"
-    key = "guid"
     attrs = [
         FieldType(name="guid", default=0),
         FieldType(name="id", default=0),
@@ -107,7 +104,6 @@ class Boot(Collects):
     """Boot."""
 
     request = "boot/get_state"
-    key = "guid"
     attrs = [
         FieldType(name="guid", default=0),
         FieldType(name="id", default=0),
@@ -154,7 +150,6 @@ class Disk(Collects):
     """Disk."""
 
     request = "disk"
-    key = "devname"
     attrs = [
         FieldType(name="name"),
         FieldType(name="devname"),
@@ -174,7 +169,6 @@ class Jail(Collects):
     """Jail."""
 
     request = "jail"
-    key = "id"
     attrs = [
         FieldType(name="id"),
         FieldType(name="comment"),
@@ -194,7 +188,6 @@ class VirtualMachine(Collects):
     """VirtualMachine."""
 
     request = "vm"
-    key = "name"
     attrs = [
         FieldType(name="id", default=0),
         FieldType(name="name"),
@@ -212,7 +205,6 @@ class Datasets(Collects):
     """Datasets."""
 
     request = "pool/dataset"
-    key = "id"
     attrs = [
         FieldType(name="id"),
         FieldType(name="type"),
@@ -241,7 +233,6 @@ class CloudSync(Collects):
     """CloudSync."""
 
     request = "cloudsync"
-    key = "id"
     attrs = [
         FieldType(name="id"),
         FieldType(name="description"),
@@ -276,7 +267,6 @@ class Replication(Collects):
     """Replication."""
 
     request = "replication"
-    key = "name"
     attrs = [
         FieldType(name="id", default=0),
         FieldType(name="name"),
@@ -314,7 +304,6 @@ class Snapshottask(Collects):
     """Snapshottask."""
 
     request = "pool/snapshottask"
-    key = "id"
     attrs = [
         FieldType(name="id", default=0),
         FieldType(name="dataset"),
@@ -351,7 +340,6 @@ class Charts(Collects):
     """Charts."""
 
     request = "chart/release"
-    key = "id"
     attrs = [
         FieldType(name="id", default=0),
         FieldType(name="name"),
@@ -367,7 +355,6 @@ class Smart(Collects):
     """Smart."""
 
     request = "/smart/test/results"
-    key = "name"
     params = {"offset": 1}
     attrs = [
         FieldType(name="name"),
@@ -390,7 +377,6 @@ class Alerts(Collects):
     """Alerts."""
 
     request = "/alert/list"
-    key = "uuid"
     attrs = [
         FieldType(name="uuid"),
         FieldType(name="formatted"),
