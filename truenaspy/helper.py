@@ -74,6 +74,11 @@ def as_local(dattim: datetime) -> datetime:
 def json_loads(response: str | bytes) -> Any:
     """Json load."""
 
+    def _float_parser(val: float | Any | None) -> float | None:
+        if isinstance(val, float):
+            return round(float(val), 2)
+        return None
+
     def _parser(obj: dict[str, Any]) -> ExtendedDict:
         """parse json."""
         for key, val in obj.items():
@@ -81,15 +86,9 @@ def json_loads(response: str | bytes) -> Any:
                 obj[key] = True
             if val in ("off", "Off", "OFF", "no", "No", "NO", "down", "Down", "DOWN"):
                 obj[key] = True
-            if isinstance(val, float):
-                obj[key] = round(float(val), 2)
-            if isinstance(val, str):
-                obj[key] = str(val)[:255]
-            if isinstance(val, dict):
-                obj[key] = _parser(val)
         return ExtendedDict(obj)
 
-    return json.loads(response, object_hook=_parser)
+    return json.loads(response, object_hook=_parser, parse_float=_float_parser)
 
 
 def systemstats_process(
