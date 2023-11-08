@@ -366,7 +366,7 @@ class Smart(Collects):
             name="status",
             source="tests",
             default=False,
-            evaluation=lambda x: x[0].get("status") == "SUCCESS"
+            evaluation=lambda x: x[0].get("status") != "SUCCESS"
             if isinstance(x, list) and len(x) > 0
             else False,
         ),
