@@ -275,7 +275,11 @@ class TruenasClient(object):
                 )
                 await self.async_get_stats(items)
         except TruenasError as error:
-            _LOGGER.error(error)
+            # ERROR FIX: Cobia NAS-123862
+            if self.system.get("current_train") not in [
+                "TrueNAS-SCALE-Cobia"
+            ] and self.system.get("short_version") not in ["23.10.0.1"]:
+                _LOGGER.error(error)
 
         return stats
 
