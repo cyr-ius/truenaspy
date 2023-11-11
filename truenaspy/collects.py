@@ -70,16 +70,16 @@ class Pool:
     """Pool."""
 
     attrs = [
+        FieldType(name="autotrim", default=False, source="autotrim.parsed"),
         FieldType(name="guid", default=0),
+        FieldType(name="healthy", default=False),
         FieldType(name="id", default=0),
+        FieldType(name="is_decrypted", default=False),
         FieldType(name="name"),
         FieldType(name="path"),
-        FieldType(name="status"),
-        FieldType(name="healthy", default=False),
-        FieldType(name="is_decrypted", default=False),
-        FieldType(name="autotrim", default=False, source="autotrim.parsed"),
         FieldType(name="scan_function", source="scan.function"),
         FieldType(name="scan_function", source="scan.state"),
+        FieldType(name="status"),
         FieldType(
             name="scrub_start",
             source="scan.start_time.$date",
@@ -204,26 +204,28 @@ class Datasets:
     """Datasets."""
 
     attrs = [
-        FieldType(name="id"),
-        FieldType(name="type"),
-        FieldType(name="name"),
-        FieldType(name="pool"),
-        FieldType(name="mountpoint"),
-        FieldType(name="comments", default="", source="comments.parsed"),
-        FieldType(name="deduplication", default=False, source="deduplication.parsed"),
         FieldType(name="atime", default=False, source="atime.parsed"),
+        FieldType(name="available", default=0, source="available.parsed"),
         FieldType(name="casesensitivity", source="casesensitivity.parsed"),
         FieldType(name="checksum", source="checksum.parsed"),
-        FieldType(name="exec", default=False, source="exec.parsed"),
-        FieldType(name="sync", source="sync.parsed"),
+        FieldType(name="comments", default="", source="comments.parsed"),
         FieldType(name="compression", source="compression.parsed"),
-        FieldType(name="quota", source="quota.parsed"),
         FieldType(name="copies", default=0, source="copies.parsed"),
+        FieldType(name="deduplication", default=False, source="deduplication.parsed"),
+        FieldType(name="encrypted", default=False),
+        FieldType(name="encryption_algorithm", source="encryption_algorithm.parsed"),
+        FieldType(name="exec", default=False, source="exec.parsed"),
+        FieldType(name="id"),
+        FieldType(name="locked"),
+        FieldType(name="mountpoint"),
+        FieldType(name="name"),
+        FieldType(name="pool"),
+        FieldType(name="quota", source="quota.parsed"),
         FieldType(name="readonly", default=False, source="readonly.parsed"),
         FieldType(name="recordsize", default=0, source="recordsize.parsed"),
-        FieldType(name="encryption_algorithm", source="encryption_algorithm.parsed"),
+        FieldType(name="sync", source="sync.parsed"),
+        FieldType(name="type"),
         FieldType(name="used", default=0, source="used.parsed"),
-        FieldType(name="available", default=0, source="available.parsed"),
         FieldType(
             name="used_gb",
             source="used.parsed",
@@ -393,4 +395,13 @@ class Alerts:
                 x if x < 100000000000 else x / 1000
             ),
         ),
+    ]
+
+
+class Rsync:
+    """Rsync."""
+
+    attrs = [
+        FieldType(name="id"),
+        FieldType(name="desc"),
     ]

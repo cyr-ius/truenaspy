@@ -20,6 +20,7 @@ from .collects import (
     Job,
     Pool,
     Replication,
+    Rsync,
     Service,
     Smart,
     Snapshottask,
@@ -72,6 +73,7 @@ class TruenasClient(object):
         self.jails: list[dict[str, Any]] = []
         self.pools: list[dict[str, Any]] = []
         self.replications: list[dict[str, Any]] = []
+        self.rsynctasks: list[dict[str, Any]] = []
         self.services: list[dict[str, Any]] = []
         self.smarts: list[dict[str, Any]] = []
         self.snapshots: list[dict[str, Any]] = []
@@ -411,6 +413,14 @@ class TruenasClient(object):
         self.data["alerts"] = self.alerts
         self._sub.notify(Events.ALERTS.value)
         return self.alerts
+
+    async def async_get_rsynctasks(self) -> list[dict[str, Any]]:
+        """Get smartdisk from TrueNAS."""
+        response = await self.query(path="rsynctask")
+        self.rsynctasks = search_attrs(Rsync, response)
+        self.data["rsynctasks"] = self.rsynctasks
+        self._sub.notify(Events.RSYNC.value)
+        return self.rsynctasks
 
     def subscribe(self, _callback: str, *args: Any) -> None:
         """Subscribe event."""

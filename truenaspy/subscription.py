@@ -23,6 +23,7 @@ class Events(Enum):
     JAILS = "jails"
     POOLS = "pools"
     REPLS = "replications"
+    RSYNC = "rsynctasks"
     SERVICES = "services"
     SMARTS = "smartdisks"
     SNAPS = "snapshottasks"
