@@ -8,7 +8,6 @@ from functools import reduce
 from logging import getLogger
 from typing import Any, Callable, Type
 
-from aiohttp import ClientSession
 from pytz import utc
 
 _LOGGER = getLogger(__name__)
@@ -42,11 +41,7 @@ class FieldType(dict[str, Any]):
 class Collects(object):
     """Collect options."""
 
-    params: dict[str, Any] | None = None
     attrs: list[FieldType] | None = None
-    request: str | None = None
-    method: str = "get"
-    key: str | None = None
 
 
 def utc_from_timestamp(timestamp: float) -> datetime:
@@ -110,17 +105,14 @@ def systemstats_process(
                     fill_dict[item] = round(value, 2)
 
 
-async def async_attributes(identity: Type[Collects], session: ClientSession) -> Any:
+def search_attrs(identity: Type[Any], dataref: Any) -> Any:
     """Map attributes."""
     attributes: list[dict[str, Any]] = []
-    response = await session.async_request(
-        path=identity.request, params=identity.params, method=identity.method
-    )
-    if response and identity.attrs:
-        if not isinstance(response, list):
+    if dataref and identity.attrs:
+        if not isinstance(dataref, list):
             attributes: dict[str, Any] = {}  # type: ignore[no-redef]
-            response = [response]
-        for item in response:
+            dataref = [dataref]
+        for item in dataref:
             attrs = {}
             for attr in identity.attrs:
                 name = attr["name"]

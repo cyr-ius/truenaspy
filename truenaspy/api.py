@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from logging import getLogger
-from typing import Any, Callable, Coroutine, Self
+from typing import Any, Self
 
 from aiohttp import ClientSession
 
@@ -30,8 +30,8 @@ from .collects import (
 from .exceptions import TruenasError
 from .helper import (
     as_local,
-    async_attributes,
     b2gib,
+    search_attrs,
     systemstats_process,
     utc_from_timestamp,
 )
@@ -61,9 +61,7 @@ class TruenasClient(object):
             (self.async_update_all, self.async_is_alive), scan_intervall
         )
         self._systemstats_errored: list[str] = []
-        self.query: Callable[
-            [str, str, Any], Coroutine[Any, Any, Any]
-        ] = self._access.async_request  # type: ignore[assignment]
+        self.query = self._access.async_request
         self.alerts: list[dict[str, Any]] = []
         self.charts: list[dict[str, Any]] = []
         self.cloudsync: list[dict[str, Any]] = []
@@ -83,27 +81,44 @@ class TruenasClient(object):
 
     async def async_get_system(self) -> dict[str, Any]:
         """Get system info from TrueNAS."""
-        self.system = await async_attributes(System, self._access)
+        response = await self.query(path="system/info")
+        self.system = search_attrs(System, response)
+
+        response = await self.query(path="system/version_short")
+        self.system.update({"short_version": response})
+
+        response = await self.query(path="/update/get_trains")
+        self.system.update({"current_train": response.get("current")})
 
         # update_available
-        update = await async_attributes(Update, self._access)
+        response = await self.query(path="update/check_available", method="post")
+        update = search_attrs(Update, response)
+        self.system.update(update)
 
-        update_available = update.get("update_status") == "AVAILABLE"
-        self.system.update({"update_available": update_available})
         # update_version
-        if not update_available:
+        if not update["update_available"]:
             self.system.update({"update_version": self.system["version"]})
 
-        if update_jobid := self.system.get("update_jobid"):
-            Job.params = {"id": update_jobid}
-            jobs = await async_attributes(Job, self._access)
-            if jobs.get("update_state") != "RUNNING" or not update_available:
-                self.system.update(
-                    {"update_progress": 0, "update_jobid": 0, "update_state": "unknown"}
-                )
+        if (update_jobid := self.system.get("update_jobid")) is not None:
+            response = await self.query(
+                path="core/get_jobs", params={"id": update_jobid}
+            )
+            jobs = search_attrs(Job, response)
+            for job in jobs:
+                if (
+                    job.get("update_state") != "RUNNING"
+                    or not update["update_available"]
+                ):
+                    self.system.update(
+                        {
+                            "update_progress": 0,
+                            "update_jobid": 0,
+                            "update_state": "unknown",
+                        }
+                    )
 
-        self._is_scale = bool(self.system["version"].startswith("TrueNAS-SCALE-"))
-
+        response = await self.query(path="/system/is_freenas")
+        self._is_scale = response is False
         self._is_virtual = self.system["system_manufacturer"] in [
             "QEMU",
             "VMware, Inc.",
@@ -191,7 +206,8 @@ class TruenasClient(object):
 
     async def async_get_interfaces(self) -> list[dict[str, Any]]:
         """Get interface info from TrueNAS."""
-        self.interfaces = await async_attributes(Interfaces, self._access)
+        response = await self.query(path="interface")
+        self.interfaces = search_attrs(Interfaces, response)
         query = [{"name": "interface", "identifier": uid} for uid in self.interfaces]
         stats = await self.async_get_stats(query)
         for item in stats:
@@ -263,17 +279,18 @@ class TruenasClient(object):
 
     async def async_get_services(self) -> list[dict[str, Any]]:
         """Get service info from TrueNAS."""
-        self.services = await async_attributes(Service, self._access)
-        for service in self.services:
-            service.update({"running": service.get("state") == "RUNNING"})
+        response = await self.query(path="service")
+        self.services = search_attrs(Service, response)
         self.data["services"] = self.services
         self._sub.notify(Events.SERVICES.value)
         return self.services
 
     async def async_get_pools(self) -> list[dict[str, Any]]:
         """Get pools from TrueNAS."""
-        self.pools = await async_attributes(Pool, self._access)
-        boot = await async_attributes(Boot, self._access)
+        response = await self.query(path="pool")
+        self.pools = search_attrs(Pool, response)
+        response = await self.query(path="boot/get_state")
+        boot = search_attrs(Boot, response)
         self.pools.append(boot)
 
         # Process pools
@@ -309,16 +326,17 @@ class TruenasClient(object):
 
     async def async_get_datasets(self) -> list[dict[str, Any]]:
         """Get datasets from TrueNAS."""
-        self.datasets = await async_attributes(Datasets, self._access)
-        for dataset in self.datasets:
-            dataset.update({"used_gb": b2gib(dataset.get("used", 0))})
+        # response = await self.query(path="pool/dataset/details")
+        response = await self.query(path="pool/dataset")
+        self.datasets = search_attrs(Datasets, response)
         self.data["datasets"] = self.datasets
         self._sub.notify(Events.DATASETS.value)
         return self.datasets
 
     async def async_get_disks(self) -> list[dict[str, Any]]:
         """Get disks from TrueNAS."""
-        self.disks = await async_attributes(Disk, self._access)
+        response = await self.query(path="disk")
+        self.disks = search_attrs(Disk, response)
         # Get disk temperatures
         temperatures = await self._access.async_request(
             "disk/temperatures", method="post", json={"names": []}
@@ -331,62 +349,65 @@ class TruenasClient(object):
 
     async def async_get_jails(self) -> list[dict[str, Any]] | None:
         """Get jails from TrueNAS."""
-        if self._is_scale is False:
-            self.jails = await async_attributes(Jail, self._access)
+        if not self._is_scale:
+            response = await self.query(path="jail")
+            self.jails = search_attrs(Jail, response)
             self.data["jails"] = self.jails
             self._sub.notify(Events.JAILS.value)
-            return self.jails
-        return None
+        return self.jails
 
     async def async_get_virtualmachines(self) -> list[dict[str, Any]]:
         """Get VMs from TrueNAS."""
-        self.virtualmachines = await async_attributes(VirtualMachine, self._access)
-        for detail in self.virtualmachines:
-            detail.update({"running": detail.get("status") == "RUNNING"})
+        response = await self.query(path="vm")
+        self.virtualmachines = search_attrs(VirtualMachine, response)
         self.data["virtualmachines"] = self.virtualmachines
         self._sub.notify(Events.VMS.value)
         return self.virtualmachines
 
     async def async_get_cloudsync(self) -> list[dict[str, Any]]:
         """Get cloudsync from TrueNAS."""
-        self.cloudsync = await async_attributes(CloudSync, self._access)
+        response = await self.query(path="cloudsync")
+        self.cloudsync = search_attrs(CloudSync, response)
         self.data["cloudsync"] = self.cloudsync
         self._sub.notify(Events.CLOUD.value)
         return self.cloudsync
 
     async def async_get_replications(self) -> list[dict[str, Any]]:
         """Get replication from TrueNAS."""
-        self.replications = await async_attributes(Replication, self._access)
+        response = await self.query(path="replication")
+        self.replications = search_attrs(Replication, response)
         self.data["replications"] = self.replications
         self._sub.notify(Events.REPLS.value)
         return self.replications
 
     async def async_get_snapshottasks(self) -> list[dict[str, Any]]:
         """Get replication from TrueNAS."""
-        self.snapshots = await async_attributes(Snapshottask, self._access)
+        response = await self.query(path="pool/snapshottask")
+        self.snapshots = search_attrs(Snapshottask, response)
         self.data["snapshots"] = self.snapshots
         self._sub.notify(Events.SNAPS.value)
         return self.snapshots
 
     async def async_get_charts(self) -> list[dict[str, Any]]:
         """Get Charts from TrueNAS."""
-        self.charts = await async_attributes(Charts, self._access)
-        for chart in self.charts:
-            chart.update({"running": chart.get("status") == "ACTIVE"})
+        response = await self.query(path="chart/release")
+        self.charts = search_attrs(Charts, response)
         self.data["charts"] = self.charts
         self._sub.notify(Events.CHARTS.value)
         return self.charts
 
     async def async_get_smartdisks(self) -> list[dict[str, Any]]:
         """Get smartdisk from TrueNAS."""
-        self.smarts = await async_attributes(Smart, self._access)
+        response = await self.query(path="/smart/test/results", params={"offset": 1})
+        self.smarts = search_attrs(Smart, response)
         self.data["smarts"] = self.smarts
         self._sub.notify(Events.SMARTS.value)
         return self.smarts
 
     async def async_get_alerts(self) -> list[dict[str, Any]]:
         """Get smartdisk from TrueNAS."""
-        self.alerts = await async_attributes(Alerts, self._access)
+        response = await self.query(path="/alert/list")
+        self.alerts = search_attrs(Alerts, response)
         self.data["alerts"] = self.alerts
         self._sub.notify(Events.ALERTS.value)
         return self.alerts

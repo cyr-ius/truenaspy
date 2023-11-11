@@ -1,11 +1,10 @@
 """Class to collect a data."""
-from .helper import Collects, FieldType, utc_from_timestamp
+from .helper import FieldType, b2gib, utc_from_timestamp
 
 
-class System(Collects):
+class System:
     """System."""
 
-    request = "system/info"
     attrs = [
         FieldType(name="version"),
         FieldType(name="hostname"),
@@ -13,35 +12,37 @@ class System(Collects):
         FieldType(name="system_serial"),
         FieldType(name="system_product"),
         FieldType(name="system_manufacturer"),
+        FieldType(name="update_jobid", default=0),
     ]
 
 
-class Update(Collects):
-    """System."""
+class Update:
+    """Update."""
 
-    request = "update/check_available"
-    method = "post"
     attrs = [
         FieldType(name="update_status", source="status"),
         FieldType(name="update_version", source="version"),
+        FieldType(name="update_progress", default=0),
+        FieldType(
+            name="update_available",
+            source="status",
+            evaluation=lambda x: x == "AVAILABLE",
+        ),
     ]
 
 
-class Job(Collects):
-    """System."""
+class Job:
+    """Job."""
 
-    request = "core/get_jobs"
-    method = "post"
     attrs = [
         FieldType(name="update_progress", source="progress.percent", default=0),
         FieldType(name="update_state", source="state"),
     ]
 
 
-class Interfaces(Collects):
-    """System."""
+class Interfaces:
+    """Interfaces."""
 
-    request = "interface"
     attrs = [
         FieldType(name="id"),
         FieldType(name="name"),
@@ -53,22 +54,21 @@ class Interfaces(Collects):
     ]
 
 
-class Service(Collects):
+class Service:
     """Service."""
 
-    request = "service"
     attrs = [
         FieldType(name="id"),
         FieldType(name="service"),
         FieldType(name="enable", default=False),
         FieldType(name="state"),
+        FieldType(name="running", source="state", evaluation=lambda x: x == "RUNNING"),
     ]
 
 
-class Pool(Collects):
+class Pool:
     """Pool."""
 
-    request = "pool"
     attrs = [
         FieldType(name="guid", default=0),
         FieldType(name="id", default=0),
@@ -100,10 +100,9 @@ class Pool(Collects):
     ]
 
 
-class Boot(Collects):
+class Boot:
     """Boot."""
 
-    request = "boot/get_state"
     attrs = [
         FieldType(name="guid", default=0),
         FieldType(name="id", default=0),
@@ -146,10 +145,9 @@ class Boot(Collects):
     ]
 
 
-class Disk(Collects):
+class Disk:
     """Disk."""
 
-    request = "disk"
     attrs = [
         FieldType(name="name"),
         FieldType(name="devname"),
@@ -165,10 +163,9 @@ class Disk(Collects):
     ]
 
 
-class Jail(Collects):
+class Jail:
     """Jail."""
 
-    request = "jail"
     attrs = [
         FieldType(name="id"),
         FieldType(name="comment"),
@@ -184,10 +181,9 @@ class Jail(Collects):
     ]
 
 
-class VirtualMachine(Collects):
+class VirtualMachine:
     """VirtualMachine."""
 
-    request = "vm"
     attrs = [
         FieldType(name="id", default=0),
         FieldType(name="name"),
@@ -198,13 +194,15 @@ class VirtualMachine(Collects):
         FieldType(name="cores", default=0),
         FieldType(name="threads", default=0),
         FieldType(name="state", source="status.state"),
+        FieldType(
+            name="running", source="status.state", evaluation=lambda x: x == "RUNNING"
+        ),
     ]
 
 
-class Datasets(Collects):
+class Datasets:
     """Datasets."""
 
-    request = "pool/dataset"
     attrs = [
         FieldType(name="id"),
         FieldType(name="type"),
@@ -226,13 +224,17 @@ class Datasets(Collects):
         FieldType(name="encryption_algorithm", source="encryption_algorithm.parsed"),
         FieldType(name="used", default=0, source="used.parsed"),
         FieldType(name="available", default=0, source="available.parsed"),
+        FieldType(
+            name="used_gb",
+            source="used.parsed",
+            evaluation=lambda x: 0 if not x else b2gib(x),
+        ),
     ]
 
 
-class CloudSync(Collects):
+class CloudSync:
     """CloudSync."""
 
-    request = "cloudsync"
     attrs = [
         FieldType(name="id"),
         FieldType(name="description"),
@@ -263,10 +265,9 @@ class CloudSync(Collects):
     ]
 
 
-class Replication(Collects):
+class Replication:
     """Replication."""
 
-    request = "replication"
     attrs = [
         FieldType(name="id", default=0),
         FieldType(name="name"),
@@ -300,10 +301,9 @@ class Replication(Collects):
     ]
 
 
-class Snapshottask(Collects):
+class Snapshottask:
     """Snapshottask."""
 
-    request = "pool/snapshottask"
     attrs = [
         FieldType(name="id", default=0),
         FieldType(name="dataset"),
@@ -336,26 +336,24 @@ class Snapshottask(Collects):
     ]
 
 
-class Charts(Collects):
+class Charts:
     """Charts."""
 
-    request = "chart/release"
     attrs = [
         FieldType(name="id", default=0),
         FieldType(name="name"),
         FieldType(name="human_version"),
         FieldType(name="update_available"),
         FieldType(name="container_images_update_available"),
-        FieldType(name="portal", source="portals.open"),
+        FieldType(name="portal"),
         FieldType(name="status"),
+        FieldType(name="running", source="status", evaluation=lambda x: x == "ACTIVE"),
     ]
 
 
-class Smart(Collects):
+class Smart:
     """Smart."""
 
-    request = "/smart/test/results"
-    params = {"offset": 1}
     attrs = [
         FieldType(name="name"),
         FieldType(name="serial"),
@@ -373,10 +371,9 @@ class Smart(Collects):
     ]
 
 
-class Alerts(Collects):
+class Alerts:
     """Alerts."""
 
-    request = "/alert/list"
     attrs = [
         FieldType(name="uuid"),
         FieldType(name="formatted"),
