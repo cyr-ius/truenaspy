@@ -28,8 +28,9 @@ from .collects import (
     Update,
     VirtualMachine,
 )
-from .exceptions import TruenasError
+from .exceptions import TruenasError, TruenasNotFoundError
 from .helper import (
+    ExtendedDict,
     as_local,
     b2gib,
     search_attrs,
@@ -59,14 +60,14 @@ class TruenasClient(object):
         self._is_scale: bool = False
         self._is_virtual: bool = False
         self._sub = Subscriptions(
-            (self.async_update_all, self.async_is_alive), scan_intervall
+            (self.async_update, self.async_is_alive), scan_intervall
         )
+        self.is_connected: bool = False
         self._systemstats_errored: list[str] = []
         self.query = self._access.async_request
         self.alerts: list[dict[str, Any]] = []
         self.charts: list[dict[str, Any]] = []
         self.cloudsync: list[dict[str, Any]] = []
-        self.data: dict[str, Any] = {}
         self.datasets: list[dict[str, Any]] = []
         self.disks: list[dict[str, Any]] = []
         self.interfaces: list[dict[str, Any]] = []
@@ -78,58 +79,29 @@ class TruenasClient(object):
         self.smarts: list[dict[str, Any]] = []
         self.snapshots: list[dict[str, Any]] = []
         self.stats: dict[str, Any] = {}
-        self.system: dict[str, Any] = {}
+        self.system_infos: dict[str, Any] = {}
+        self.update_infos: dict[str, Any] = {}
         self.virtualmachines: list[dict[str, Any]] = []
 
     async def async_get_system(self) -> dict[str, Any]:
         """Get system info from TrueNAS."""
         response = await self.query(path="system/info")
-        self.system = search_attrs(System, response)
+        self.system_infos = search_attrs(System, response)
 
         response = await self.query(path="system/version_short")
-        self.system.update({"short_version": response})
+        self.system_infos.update({"short_version": response})
 
-        response = await self.query(path="/update/get_trains")
-        self.system.update({"current_train": response.get("current")})
-
-        # update_available
-        response = await self.query(path="update/check_available", method="post")
-        update = search_attrs(Update, response)
-        self.system.update(update)
-
-        # update_version
-        if not update["update_available"]:
-            self.system.update({"update_version": self.system["version"]})
-
-        if (update_jobid := self.system.get("update_jobid")) is not None:
-            response = await self.query(
-                path="core/get_jobs", params={"id": update_jobid}
-            )
-            jobs = search_attrs(Job, response)
-            for job in jobs:
-                if (
-                    job.get("update_state") != "RUNNING"
-                    or not update["update_available"]
-                ):
-                    self.system.update(
-                        {
-                            "update_progress": 0,
-                            "update_jobid": 0,
-                            "update_state": "unknown",
-                        }
-                    )
-
-        response = await self.query(path="/system/is_freenas")
+        response = await self.query(path="system/is_freenas")
         self._is_scale = response is False
-        self._is_virtual = self.system["system_manufacturer"] in [
+        self._is_virtual = self.system_infos["system_manufacturer"] in [
             "QEMU",
             "VMware, Inc.",
-        ] or self.system["system_product"] in ["VirtualBox"]
+        ] or self.system_infos["system_product"] in ["VirtualBox"]
 
-        if (uptime := self.system["uptime_seconds"]) > 0:
+        if (uptime := self.system_infos["uptime_seconds"]) > 0:
             now = datetime.now().replace(microsecond=0)
             uptime_tm = datetime.timestamp(now - timedelta(seconds=int(uptime)))
-            self.system.update(
+            self.system_infos.update(
                 {
                     "uptimeEpoch": str(
                         as_local(utc_from_timestamp(uptime_tm)).isoformat()
@@ -137,6 +109,7 @@ class TruenasClient(object):
                 }
             )
 
+        # Get stats.
         query = [
             {"name": "load"},
             {"name": "cpu"},
@@ -152,21 +125,21 @@ class TruenasClient(object):
         for item in stats:
             # CPU temperature
             if item.get("name") == "cputemp" and "aggregations" in item:
-                self.system["cpu_temperature"] = round(
+                self.system_infos["cpu_temperature"] = round(
                     max(list(filter(None, item["aggregations"]["mean"]))), 1
                 )
 
             # CPU load
             if item.get("name") == "load":
                 tmp_arr = ["load_shortterm", "load_midterm", "load_longterm"]
-                systemstats_process(self.system, tmp_arr, item, "")
+                systemstats_process(self.system_infos, tmp_arr, item, "")
 
             # CPU usage
             if item.get("name") == "cpu":
                 tmp_arr = ["interrupt", "system", "user", "nice", "idle"]
-                systemstats_process(self.system, tmp_arr, item, "cpu")
-                self.system["cpu_usage"] = round(
-                    self.system["cpu_system"] + self.system["cpu_user"], 2
+                systemstats_process(self.system_infos, tmp_arr, item, "cpu")
+                self.system_infos["cpu_usage"] = round(
+                    self.system_infos["cpu_system"] + self.system_infos["cpu_user"], 2
                 )
 
             # arcratio
@@ -177,17 +150,20 @@ class TruenasClient(object):
                     "memory-cached_value",
                     "memory-buffered_value",
                 ]
-                systemstats_process(self.system, tmp_arr, item, "memory")
-                self.system["memory_total_value"] = round(
-                    self.system["memory-used_value"]
-                    + self.system["memory-free_value"]
-                    + self.system["cache_size-arc_value"],
+                systemstats_process(self.system_infos, tmp_arr, item, "memory")
+                self.system_infos["memory_total_value"] = round(
+                    self.system_infos["memory-used_value"]
+                    + self.system_infos["memory-free_value"]
+                    + self.system_infos["cache_size-arc_value"],
                     2,
                 )
-                if (total_value := self.system["memory_total_value"]) > 0:
-                    self.system["memory_usage_percent"] = round(
+                if (total_value := self.system_infos["memory_total_value"]) > 0:
+                    self.system_infos["memory_usage_percent"] = round(
                         100
-                        * (float(total_value) - float(self.system["memory-free_value"]))
+                        * (
+                            float(total_value)
+                            - float(self.system_infos["memory-free_value"])
+                        )
                         / float(total_value),
                         0,
                     )
@@ -195,21 +171,22 @@ class TruenasClient(object):
             # arcsize
             if item.get("name") == "arcsize":
                 tmp_arr = ["cache_size-arc_value", "cache_size-L2_value"]
-                systemstats_process(self.system, tmp_arr, item, "memory")
+                systemstats_process(self.system_infos, tmp_arr, item, "memory")
 
             # arcratio
             if item.get("name") == "arcratio":
                 tmp_arr = ["cache_ratio-arc_value", "cache_ratio-L2_value"]
-                systemstats_process(self.system, tmp_arr, item, "")
+                systemstats_process(self.system_infos, tmp_arr, item, "")
 
-        self.data["systeminfos"] = self.system
         self._sub.notify(Events.SYSTEM.value)
-        return self.system
+        return self.system_infos
 
     async def async_get_interfaces(self) -> list[dict[str, Any]]:
         """Get interface info from TrueNAS."""
         response = await self.query(path="interface")
         self.interfaces = search_attrs(Interfaces, response)
+
+        # Get stats
         query = [{"name": "interface", "identifier": uid} for uid in self.interfaces]
         stats = await self.async_get_stats(query)
         for item in stats:
@@ -227,7 +204,6 @@ class TruenasClient(object):
                     self.interfaces[identifier], ["rx", "tx"], item, "rx-tx"
                 )
 
-        self.data["interfaces"] = self.interfaces
         self._sub.notify(Events.INTERFACES.value)
         return self.interfaces
 
@@ -276,9 +252,14 @@ class TruenasClient(object):
                 await self.async_get_stats(items)
         except TruenasError as error:
             # ERROR FIX: Cobia NAS-123862
-            if self.system.get("current_train") not in [
-                "TrueNAS-SCALE-Cobia"
-            ] and self.system.get("short_version") not in ["23.10.0.1"]:
+            if self.system_infos.get("current_train") not in [
+                "TrueNAS-SCALE-Cobia",
+                None,
+            ] and self.system_infos.get("short_version") not in [
+                "23.10.0",
+                "23.10.0.0",
+                "23.10.0.1",
+            ]:
                 _LOGGER.error(error)
 
         return stats
@@ -287,7 +268,6 @@ class TruenasClient(object):
         """Get service info from TrueNAS."""
         response = await self.query(path="service")
         self.services = search_attrs(Service, response)
-        self.data["services"] = self.services
         self._sub.notify(Events.SERVICES.value)
         return self.services
 
@@ -295,7 +275,13 @@ class TruenasClient(object):
         """Get pools from TrueNAS."""
         response = await self.query(path="pool")
         self.pools = search_attrs(Pool, response)
-        response = await self.query(path="boot/get_state")
+
+        try:
+            response = await self.query(path="boot/get_state")
+        except TruenasError as error:
+            _LOGGER.debug(error)
+            response = ExtendedDict()
+
         boot = search_attrs(Boot, response)
         self.pools.append(boot)
 
@@ -326,7 +312,6 @@ class TruenasClient(object):
                 )
                 # self.pools[uid].pop("root_dataset")
 
-        self.data["pools"] = self.pools
         self._sub.notify(Events.POOLS.value)
         return self.pools
 
@@ -335,7 +320,6 @@ class TruenasClient(object):
         # response = await self.query(path="pool/dataset/details")
         response = await self.query(path="pool/dataset")
         self.datasets = search_attrs(Datasets, response)
-        self.data["datasets"] = self.datasets
         self._sub.notify(Events.DATASETS.value)
         return self.datasets
 
@@ -349,24 +333,25 @@ class TruenasClient(object):
         )
         for disk in self.disks:
             disk.update({"temperature": temperatures.get(disk["name"], 0)})
-        self.data["disks"] = self.disks
         self._sub.notify(Events.DISKS.value)
         return self.disks
 
     async def async_get_jails(self) -> list[dict[str, Any]] | None:
         """Get jails from TrueNAS."""
-        if not self._is_scale:
-            response = await self.query(path="jail")
+        if self._is_scale is False:
+            try:
+                response = await self.query(path="jail")
+            except TruenasNotFoundError as error:
+                _LOGGER.warning(error)
+                response = ExtendedDict()
             self.jails = search_attrs(Jail, response)
-            self.data["jails"] = self.jails
-            self._sub.notify(Events.JAILS.value)
+        self._sub.notify(Events.JAILS.value)
         return self.jails
 
     async def async_get_virtualmachines(self) -> list[dict[str, Any]]:
         """Get VMs from TrueNAS."""
         response = await self.query(path="vm")
         self.virtualmachines = search_attrs(VirtualMachine, response)
-        self.data["virtualmachines"] = self.virtualmachines
         self._sub.notify(Events.VMS.value)
         return self.virtualmachines
 
@@ -374,7 +359,6 @@ class TruenasClient(object):
         """Get cloudsync from TrueNAS."""
         response = await self.query(path="cloudsync")
         self.cloudsync = search_attrs(CloudSync, response)
-        self.data["cloudsync"] = self.cloudsync
         self._sub.notify(Events.CLOUD.value)
         return self.cloudsync
 
@@ -382,7 +366,6 @@ class TruenasClient(object):
         """Get replication from TrueNAS."""
         response = await self.query(path="replication")
         self.replications = search_attrs(Replication, response)
-        self.data["replications"] = self.replications
         self._sub.notify(Events.REPLS.value)
         return self.replications
 
@@ -390,7 +373,6 @@ class TruenasClient(object):
         """Get replication from TrueNAS."""
         response = await self.query(path="pool/snapshottask")
         self.snapshots = search_attrs(Snapshottask, response)
-        self.data["snapshots"] = self.snapshots
         self._sub.notify(Events.SNAPS.value)
         return self.snapshots
 
@@ -398,23 +380,20 @@ class TruenasClient(object):
         """Get Charts from TrueNAS."""
         response = await self.query(path="chart/release")
         self.charts = search_attrs(Charts, response)
-        self.data["charts"] = self.charts
         self._sub.notify(Events.CHARTS.value)
         return self.charts
 
     async def async_get_smartdisks(self) -> list[dict[str, Any]]:
         """Get smartdisk from TrueNAS."""
-        response = await self.query(path="/smart/test/results", params={"offset": 1})
+        response = await self.query(path="smart/test/results", params={"offset": 1})
         self.smarts = search_attrs(Smart, response)
-        self.data["smarts"] = self.smarts
         self._sub.notify(Events.SMARTS.value)
         return self.smarts
 
     async def async_get_alerts(self) -> list[dict[str, Any]]:
         """Get smartdisk from TrueNAS."""
-        response = await self.query(path="/alert/list")
+        response = await self.query(path="alert/list")
         self.alerts = search_attrs(Alerts, response)
-        self.data["alerts"] = self.alerts
         self._sub.notify(Events.ALERTS.value)
         return self.alerts
 
@@ -422,9 +401,42 @@ class TruenasClient(object):
         """Get smartdisk from TrueNAS."""
         response = await self.query(path="rsynctask")
         self.rsynctasks = search_attrs(Rsync, response)
-        self.data["rsynctasks"] = self.rsynctasks
         self._sub.notify(Events.RSYNC.value)
         return self.rsynctasks
+
+    async def async_get_update(self) -> dict[str, Any]:
+        """Get update info from TrueNAS."""
+        try:
+            response = await self.query(path="update/check_available", method="post")
+        except TruenasError as error:
+            _LOGGER.debug(error)
+            response = ExtendedDict()
+        self.update_infos = search_attrs(Update, response)
+
+        try:
+            response = await self.query(path="update/get_trains")
+        except TruenasError as error:
+            _LOGGER.debug(error)
+            response = ExtendedDict()
+        self.update_infos.update({"current_train": response.get("current")})
+
+        if (jobid := self.system_infos.get("job_id")) is not None:
+            response = await self.query(path="core/get_jobs", params={"id": jobid})
+            jobs = search_attrs(Job, response)
+            for job in jobs:
+                if (
+                    job.get("state") != "RUNNING"
+                    or not self.update_infos["update_available"]
+                ):
+                    self.update_infos.update(
+                        {"progress": 0, "status": None, "job_id": 0}
+                    )
+        return self.update_infos
+
+    async def async_is_alive(self) -> bool:
+        """Check connection."""
+        result = await self._access.async_request("core/ping")
+        return "pong" in result
 
     def subscribe(self, _callback: str, *args: Any) -> None:
         """Subscribe event."""
@@ -434,22 +446,24 @@ class TruenasClient(object):
         """Unsubscribe event."""
         self._sub.subscribe(_callback, *args)
 
-    async def async_update_all(self) -> dict[str, Any]:
+    async def async_update(self) -> None:
         """Update all datas."""
-        for event in Events:
-            try:
-                if event.name != "ALL":
-                    fnc = getattr(self, f"async_get_{event.value}")
-                    await fnc()
-            except TruenasError as error:
-                _LOGGER.error(error)
-        self._sub.notify(Events.ALL.value)
-        return self.data
-
-    async def async_is_alive(self) -> bool:
-        """Check connection."""
-        result = await self._access.async_request("core/ping")
-        return "pong" in result
+        try:
+            await self.async_is_alive()
+            nb_events = len(Events)
+            nb_errors = 0
+            for event in Events:
+                try:
+                    if event.name != "ALL":
+                        fnc = getattr(self, f"async_get_{event.value}")
+                        await fnc()
+                except TruenasError as error:
+                    _LOGGER.error(error)
+                    nb_errors += 1
+            self.is_connected = nb_events == nb_errors
+        except TruenasError as error:
+            _LOGGER.error(error)
+            self.is_connected = False
 
     async def async_close(self) -> None:
         """Close open client session."""

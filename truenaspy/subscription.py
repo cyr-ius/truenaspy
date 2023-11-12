@@ -14,7 +14,6 @@ class Events(Enum):
     """Subscription events."""
 
     ALERTS = "alerts"
-    ALL: str = "all_events"
     CHARTS = "charts"
     CLOUD = "cloudsync"
     DATASETS = "datasets"
@@ -29,6 +28,7 @@ class Events(Enum):
     SNAPS = "snapshottasks"
     SYSTEM = "system"
     VMS = "virtualmachines"
+    UPDATE = "update"
 
 
 class Subscriptions:

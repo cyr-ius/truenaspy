@@ -12,7 +12,6 @@ class System:
         FieldType(name="system_serial"),
         FieldType(name="system_product"),
         FieldType(name="system_manufacturer"),
-        FieldType(name="update_jobid", default=0),
     ]
 
 
@@ -20,13 +19,12 @@ class Update:
     """Update."""
 
     attrs = [
-        FieldType(name="update_status", source="status"),
-        FieldType(name="update_version", source="version"),
-        FieldType(name="update_progress", default=0),
+        FieldType(name="job_id", default=0),
+        FieldType(name="status", source="status"),
+        FieldType(name="version", source="version"),
+        FieldType(name="progress", default=0),
         FieldType(
-            name="update_available",
-            source="status",
-            evaluation=lambda x: x == "AVAILABLE",
+            name="available", source="status", evaluation=lambda x: x == "AVAILABLE"
         ),
     ]
 
@@ -35,8 +33,8 @@ class Job:
     """Job."""
 
     attrs = [
-        FieldType(name="update_progress", source="progress.percent", default=0),
-        FieldType(name="update_state", source="state"),
+        FieldType(name="progress", source="progress.percent", default=0),
+        FieldType(name="state", source="state"),
     ]
 
 
