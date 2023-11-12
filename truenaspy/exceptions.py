@@ -10,4 +10,8 @@ class TruenasConnectionError(TruenasError):
 
 
 class TruenasAuthenticationError(TruenasError):
-    """Tailscale authentication exception."""
+    """Authentication exception."""
+
+
+class TruenasNotFoundError(TruenasError):
+    """API not found exception."""
