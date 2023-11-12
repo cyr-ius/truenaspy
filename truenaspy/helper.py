@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from datetime import datetime
 from functools import reduce
 from logging import getLogger
@@ -35,13 +34,6 @@ class FieldType(dict[str, Any]):
     default: Any = None
     source: str | None = None
     evaluation: Callable[..., Any] | None = None
-
-
-@dataclass
-class Collects(object):
-    """Collect options."""
-
-    attrs: list[FieldType] | None = None
 
 
 def utc_from_timestamp(timestamp: float) -> datetime:
@@ -108,7 +100,7 @@ def systemstats_process(
 def search_attrs(identity: Type[Any], dataref: Any) -> Any:
     """Map attributes."""
     attributes: list[dict[str, Any]] = []
-    if dataref and identity.attrs:
+    if dataref is not None and identity.attrs:
         if not isinstance(dataref, list):
             attributes: dict[str, Any] = {}  # type: ignore[no-redef]
             dataref = [dataref]
