@@ -76,7 +76,7 @@ class TruenasClient(object):
         self.replications: list[dict[str, Any]] = []
         self.rsynctasks: list[dict[str, Any]] = []
         self.services: list[dict[str, Any]] = []
-        self.smarts: list[dict[str, Any]] = []
+        self.smartdisks: list[dict[str, Any]] = []
         self.snapshots: list[dict[str, Any]] = []
         self.stats: dict[str, Any] = {}
         self.system_infos: dict[str, Any] = {}
@@ -386,9 +386,9 @@ class TruenasClient(object):
     async def async_get_smartdisks(self) -> list[dict[str, Any]]:
         """Get smartdisk from TrueNAS."""
         response = await self.query(path="smart/test/results", params={"offset": 1})
-        self.smarts = search_attrs(Smart, response)
+        self.smartdisks = search_attrs(Smart, response)
         self._sub.notify(Events.SMARTS.value)
-        return self.smarts
+        return self.smartdisks
 
     async def async_get_alerts(self) -> list[dict[str, Any]]:
         """Get smartdisk from TrueNAS."""
