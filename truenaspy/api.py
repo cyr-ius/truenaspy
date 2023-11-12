@@ -420,7 +420,7 @@ class TruenasClient(object):
             response = ExtendedDict()
         self.update_infos.update({"current_train": response.get("current")})
 
-        if (jobid := self.system_infos.get("job_id")) is not None:
+        if jobid := self.system_infos.get("job_id", 0):
             response = await self.query(path="core/get_jobs", params={"id": jobid})
             jobs = search_attrs(Job, response)
             for job in jobs:
