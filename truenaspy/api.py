@@ -341,10 +341,10 @@ class TruenasClient(object):
         if self._is_scale is False:
             try:
                 response = await self.query(path="jail")
+                self.jails = search_attrs(Jail, response)
             except TruenasNotFoundError as error:
                 _LOGGER.warning(error)
-                response = ExtendedDict()
-            self.jails = search_attrs(Jail, response)
+                self.jails = []
         self._sub.notify(Events.JAILS.value)
         return self.jails
 
