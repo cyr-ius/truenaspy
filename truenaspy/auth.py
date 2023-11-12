@@ -9,7 +9,12 @@ from typing import Any
 
 from aiohttp import ClientError, ClientResponseError, ClientSession
 
-from .exceptions import TruenasAuthenticationError, TruenasConnectionError, TruenasError
+from .exceptions import (
+    TruenasAuthenticationError,
+    TruenasConnectionError,
+    TruenasError,
+    TruenasNotFoundError,
+)
 from .helper import json_loads
 
 _LOGGER = getLogger(__name__)
@@ -67,7 +72,10 @@ class Auth:
             if error.status in [401, 403]:
                 msg = "Authentication to the Truenas API failed"
                 raise TruenasAuthenticationError(msg) from error
-            msg = f"Error occurred while communicating with Truenas (RC {error.status})"
+            if error.status in [404]:
+                msg = f"API not found ({path} - {error.status})"
+                raise TruenasNotFoundError(msg) from error
+            msg = f"Error occurred while communicating with Truenas ({error})"
             raise TruenasError(msg) from error
         except (ClientError, socket.gaierror) as error:
             msg = "Error occurred while communicating with Truenas"
