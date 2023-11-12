@@ -454,13 +454,14 @@ class TruenasClient(object):
             nb_errors = 0
             for event in Events:
                 try:
-                    if event.name != "ALL":
-                        fnc = getattr(self, f"async_get_{event.value}")
-                        await fnc()
+                    fnc = getattr(self, f"async_get_{event.value}")
+                    await fnc()
                 except TruenasError as error:
                     _LOGGER.error(error)
                     nb_errors += 1
-            self.is_connected = nb_events == nb_errors
+            self.is_connected = (
+                False if nb_errors > 0 and nb_events == nb_errors else True
+            )
         except TruenasError as error:
             _LOGGER.error(error)
             self.is_connected = False
