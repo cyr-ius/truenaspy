@@ -342,10 +342,21 @@ class Charts:
     attrs = [
         FieldType(name="id", default=0),
         FieldType(name="name"),
+        FieldType(name="description", source="chart_metadata.description"),
+        FieldType(name="meta_version", source="chart_metadata.version"),
+        FieldType(name="meta_app_version", source="chart_metadata.appVersion"),
+        FieldType(
+            name="meta_latests_version", source="chart_metadata.latest_chart_version"
+        ),
         FieldType(name="human_version"),
+        FieldType(name="human_latest_version"),
         FieldType(name="update_available"),
         FieldType(name="container_images_update_available"),
-        FieldType(name="portal"),
+        FieldType(
+            name="portal",
+            source="portals.open",
+            evaluation=lambda x: x[0] if isinstance(x, list) and len(x) > 0 else None,
+        ),
         FieldType(name="status"),
         FieldType(name="running", source="status", evaluation=lambda x: x == "ACTIVE"),
     ]
