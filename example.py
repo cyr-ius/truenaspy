@@ -5,7 +5,7 @@
 import asyncio
 import logging
 
-from truenaspy import Events, TrueNASAPI
+from truenaspy import Events, TruenasClient
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -23,12 +23,12 @@ TOKEN = "xxxxxxxxxxxxxxxxxxxxxxxxx"
 async def main() -> None:
     """Main function."""
 
-    api = TrueNASAPI(token=TOKEN, host=HOST, use_ssl=True, verify_ssl=True)
+    api = TruenasClient(token=TOKEN, host=HOST, use_ssl=True, verify_ssl=True)
     rlst = await api.async_get_system()
     logger.info(rlst)
 
     # Fetch all datas
-    await api.async_update_all()
+    await api.async_update()
     logger.info(api.data)
 
     # await api.async_get_interfaces()
