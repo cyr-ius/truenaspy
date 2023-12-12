@@ -47,7 +47,7 @@ async def main() -> None:
     # ==================
     # Subscribe at Event
     # ==================
-    api = TrueNASAPI(
+    api = TruenasClient(
         token=TOKEN, host=HOST, use_ssl=True, verify_ssl=False, scan_intervall=5
     )
 
