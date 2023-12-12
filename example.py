@@ -67,8 +67,7 @@ async def main() -> None:
         i = i + 1
         await asyncio.sleep(15)
         if i == 5:
-            api.unsubscribe(Events.ALL, log)
-            api.unsubscribe(Events.ALL, log_disk)
+            api.unsubscribe(Events.DISKS, log_disk)
             polling = False
 
     await api.async_close()
