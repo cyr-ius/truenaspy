@@ -179,22 +179,23 @@ class TruenasClient(object):
         self.interfaces = search_attrs(Interfaces, response)
 
         # Get stats
-        query = [{"name": "interface", "identifier": uid} for uid in self.interfaces]
+        query = [
+            {"name": "interface", "identifier": interface["id"]}
+            for interface in self.interfaces
+        ]
         stats = await self.async_get_stats(query)
-        for item in stats:
-            # Interface
-            if (
-                item.get("name") == "interface"
-                and (identifier := item["identifier"]) in self.interfaces
-            ):
-                # 12->13 API change
-                item["legend"] = [
-                    legend.replace("if_octets_", "") for legend in item["legend"]
-                ]
-
-                systemstats_process(
-                    self.interfaces[identifier], ["rx", "tx"], item, "rx-tx"
-                )
+        for interface in self.interfaces:
+            for item in stats:
+                # Interface
+                if (
+                    item.get("name") == "interface"
+                    and item["identifier"] == interface["id"]
+                ):
+                    # 12->13 API change
+                    item["legend"] = [
+                        legend.replace("if_octets_", "") for legend in item["legend"]
+                    ]
+                    systemstats_process(interface, ["received", "sent"], item, "rx-tx")
 
         self._sub.notify(Events.INTERFACES.value)
         return self.interfaces
