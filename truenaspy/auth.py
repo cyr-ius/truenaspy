@@ -56,6 +56,7 @@ class Auth:
         )
         try:
             _LOGGER.debug("TrueNAS %s query: %s (%s)", self.host, path, method)
+            _LOGGER.debug("POST Content: %s", kwargs.get("json"))
             async with asyncio.timeout(self.timeout):
                 response = await self.session.request(
                     method,
