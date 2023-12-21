@@ -114,7 +114,7 @@ class TruenasClient(object):
             {"name": "load"},
             {"name": "cpu"},
             {"name": "arcsize"},
-            {"name": "arcratio"},
+            {"name": "arcrate"},
             {"name": "memory"},
         ]
 
@@ -126,7 +126,7 @@ class TruenasClient(object):
             # CPU temperature
             if item.get("name") == "cputemp" and "aggregations" in item:
                 self.system_infos["cpu_temperature"] = round(
-                    max(list(filter(None, item["aggregations"]["mean"]))), 1
+                    max(item["aggregations"]["mean"].values()), 1
                 )
 
             # CPU load
@@ -144,38 +144,30 @@ class TruenasClient(object):
 
             # arcratio
             if item.get("name") == "memory":
-                tmp_arr = [
-                    "memory-used_value",
-                    "memory-free_value",
-                    "memory-cached_value",
-                    "memory-buffered_value",
-                ]
+                tmp_arr = ["used", "free", "cached", "buffers"]
                 systemstats_process(self.system_infos, tmp_arr, item, "memory")
                 self.system_infos["memory_total_value"] = round(
-                    self.system_infos["memory-used_value"]
-                    + self.system_infos["memory-free_value"]
-                    + self.system_infos["cache_size-arc_value"],
+                    self.system_infos["memory_used"]
+                    + self.system_infos["memory_free"]
+                    + self.system_infos["memory_arc_size"],
                     2,
                 )
                 if (total_value := self.system_infos["memory_total_value"]) > 0:
                     self.system_infos["memory_usage_percent"] = round(
                         100
-                        * (
-                            float(total_value)
-                            - float(self.system_infos["memory-free_value"])
-                        )
+                        * (float(total_value) - float(self.system_infos["memory_free"]))
                         / float(total_value),
                         0,
                     )
 
             # arcsize
             if item.get("name") == "arcsize":
-                tmp_arr = ["cache_size-arc_value", "cache_size-L2_value"]
+                tmp_arr = ["arc_size"]
                 systemstats_process(self.system_infos, tmp_arr, item, "memory")
 
             # arcratio
-            if item.get("name") == "arcratio":
-                tmp_arr = ["cache_ratio-arc_value", "cache_ratio-L2_value"]
+            if item.get("name") == "arcrate":
+                tmp_arr = ["hits", "misses"]
                 systemstats_process(self.system_infos, tmp_arr, item, "")
 
         self._sub.notify(Events.SYSTEM.value)
@@ -209,13 +201,12 @@ class TruenasClient(object):
 
     async def async_get_stats(self, items: list[dict[str, Any]]) -> Any:
         """Get statistics."""
+        now = datetime.now()
+        start = int((now - timedelta(seconds=90)).timestamp())
+        end = int((now - timedelta(seconds=30)).timestamp())
         query: dict[str, Any] = {
             "graphs": items,
-            "reporting_query": {
-                "start": "now-90s",
-                "end": "now-30s",
-                "aggregate": True,
-            },
+            "reporting_query": {"start": start, "end": end, "aggregate": True},
         }
 
         for param in query["graphs"]:
@@ -236,8 +227,8 @@ class TruenasClient(object):
                         json={
                             "graphs": [param],
                             "reporting_query": {
-                                "start": "now-90s",
-                                "end": "now-30s",
+                                "start": start,
+                                "end": end,
                                 "aggregate": True,
                             },
                         },
@@ -252,10 +243,7 @@ class TruenasClient(object):
                 await self.async_get_stats(items)
         except TruenasError as error:
             # ERROR FIX: Cobia NAS-123862
-            if self.system_infos.get("current_train") not in [
-                "TrueNAS-SCALE-Cobia",
-                None,
-            ] and self.system_infos.get("short_version") not in [
+            if self.system_infos.get("short_version") not in [
                 "23.10.0",
                 "23.10.0.0",
                 "23.10.0.1",
