@@ -163,9 +163,16 @@ class TruenasClient(object):
                         0,
                     )
 
+                self.system_infos["arc_size_ratio"] = round(
+                    self.system_infos["memory_arc_size"]
+                    * 100
+                    / self.system_infos["memory_total_value"],
+                    2,
+                )
+
             # Swap
             if item.get("name") == "swap":
-                tmp_arr = ["free,used"]
+                tmp_arr = ["free", "used"]
                 systemstats_process(self.system_infos, tmp_arr, item, "swap")
 
             # arcsize
