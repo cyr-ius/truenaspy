@@ -115,6 +115,8 @@ class TruenasClient(object):
             {"name": "cpu"},
             {"name": "arcsize"},
             {"name": "arcrate"},
+            # {"name": "arcactualrate"},
+            # {"name": "arcresult"},
             {"name": "memory"},
         ]
 
@@ -131,8 +133,8 @@ class TruenasClient(object):
 
             # CPU load
             if item.get("name") == "load":
-                tmp_arr = ["load_shortterm", "load_midterm", "load_longterm"]
-                systemstats_process(self.system_infos, tmp_arr, item, "")
+                tmp_arr = ["shortterm", "midterm", "longterm"]
+                systemstats_process(self.system_infos, tmp_arr, item, "load")
 
             # CPU usage
             if item.get("name") == "cpu":
@@ -142,7 +144,7 @@ class TruenasClient(object):
                     self.system_infos["cpu_system"] + self.system_infos["cpu_user"], 2
                 )
 
-            # arcratio
+            # memory
             if item.get("name") == "memory":
                 tmp_arr = ["used", "free", "cached", "buffers"]
                 systemstats_process(self.system_infos, tmp_arr, item, "memory")
@@ -160,15 +162,30 @@ class TruenasClient(object):
                         0,
                     )
 
+            # Swap
+            if item.get("name") == "swap":
+                tmp_arr = ["swap_size"]
+                systemstats_process(self.system_infos, tmp_arr, item, "swap")
+
             # arcsize
             if item.get("name") == "arcsize":
                 tmp_arr = ["arc_size"]
                 systemstats_process(self.system_infos, tmp_arr, item, "memory")
 
-            # arcratio
+            # arcactualrate ZFS Actual Cache Hits Rate
+            # if item.get("name") == "arcactualrate":
+            #     tmp_arr = ["hits", "misses"]
+            #     systemstats_process(self.system_infos, tmp_arr, item, "arc")
+
+            # arcrate ZFS ARC Hits Rate
             if item.get("name") == "arcrate":
                 tmp_arr = ["hits", "misses"]
-                systemstats_process(self.system_infos, tmp_arr, item, "")
+                systemstats_process(self.system_infos, tmp_arr, item, "arc")
+
+            # arcrate ZZFS ARC Result
+            # if item.get("name") == "arcresult":
+            #     tmp_arr = []
+            #     systemstats_process(self.system_infos, tmp_arr, item, "arc")
 
         self._sub.notify(Events.SYSTEM.value)
         return self.system_infos
@@ -436,7 +453,7 @@ class TruenasClient(object):
         self._sub.subscribe(_callback, *args)
 
     async def async_update(self) -> None:
-        """Update all datas."""
+        """Update all data."""
         try:
             await self.async_is_alive()
             nb_events = len(Events)
