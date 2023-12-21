@@ -85,10 +85,9 @@ def systemstats_process(
     if "aggregations" in graph:
         for item in graph["legend"]:
             if item in arr:
-                position = graph["legend"].index(item)
-                value: int = graph["aggregations"]["mean"][position] or 0
+                value: int = graph["aggregations"]["mean"].get(item, 0)
                 if mode == "memory":
-                    fill_dict[item] = b2gib(value)
+                    fill_dict[f"memory_{item}"] = round(value, 2)
                 elif mode == "cpu":
                     fill_dict[f"cpu_{item}"] = round(value, 2)
                 elif mode == "rx-tx":
