@@ -118,6 +118,7 @@ class TruenasClient(object):
             # {"name": "arcactualrate"},
             # {"name": "arcresult"},
             {"name": "memory"},
+            {"name": "swap"},
         ]
 
         if not self._is_virtual:
@@ -164,7 +165,7 @@ class TruenasClient(object):
 
             # Swap
             if item.get("name") == "swap":
-                tmp_arr = ["swap_size"]
+                tmp_arr = ["free,used"]
                 systemstats_process(self.system_infos, tmp_arr, item, "swap")
 
             # arcsize
