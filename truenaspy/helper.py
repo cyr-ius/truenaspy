@@ -13,10 +13,10 @@ _LOGGER = getLogger(__name__)
 
 
 class ExtendedDict(dict[Any, Any]):
-    """Extend dictionnary class."""
+    """Extend dictionary class."""
 
     def getr(self, keys: str, default: Any = None) -> Any:
-        """Get recursive attribut."""
+        """Get recursive attribute."""
         reduce_value: Any = reduce(
             lambda d, key: d.get(key, default) if isinstance(d, dict) else default,
             keys.split("."),
@@ -79,9 +79,12 @@ def json_loads(response: str | bytes) -> Any:
 
 
 def systemstats_process(
-    fill_dict: dict[str, Any], arr: list[str], graph: dict[str, Any], mode: str
+    fill_dict: dict[str, Any],
+    arr: list[str],
+    graph: dict[str, Any],
+    mode: str | None = None,
 ) -> None:
-    """Fill dictionnary from stats."""
+    """Fill dictionary from stats."""
     if "aggregations" in graph:
         for item in graph["legend"]:
             if item in arr:
@@ -92,6 +95,8 @@ def systemstats_process(
                     fill_dict[f"cpu_{item}"] = round(value, 2)
                 elif mode == "rx-tx":
                     fill_dict[item] = round(value / 1024, 2)
+                elif mode is not None:
+                    fill_dict[f"{mode}_{item}"] = round(value, 2)
                 else:
                     fill_dict[item] = round(value, 2)
 
