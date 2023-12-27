@@ -6,14 +6,17 @@
   ],
   "settings": {
     "editor.formatOnSave": true,
-    "editor.defaultFormatter": "ms-python.black-formatter",
-    "flake8.args": ["--ignore=E501,E203,W504,E712,W503"]
+    "editor.codeActionsOnSave": {
+      "source.fixAll": true,
+      "source.organizeImports": true
+    },
+    "editor.defaultFormatter": "charliermarsh.ruff"
   },
   "launch": {
     "version": "0.2.0",
     "configurations": [
       {
-        "name": "Python : Fichier Exemple",
+        "name": "Python : Fichier Example",
         "type": "python",
         "request": "launch",
         "program": "example_home.py",

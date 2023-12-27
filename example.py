@@ -27,7 +27,7 @@ async def main() -> None:
     rlst = await api.async_get_system()
     logger.info(rlst)
 
-    # Fetch all datas
+    # Fetch all data
     await api.async_update()
     logger.info(api.data)
 
