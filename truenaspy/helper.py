@@ -7,7 +7,7 @@ from functools import reduce
 from logging import getLogger
 from typing import Any, Callable, Type
 
-from pytz import utc
+from pytz import utc  # type: ignore[import-untyped]
 
 _LOGGER = getLogger(__name__)
 
@@ -36,7 +36,7 @@ class FieldType(dict[str, Any]):
     evaluation: Callable[..., Any] | None = None
 
 
-def utc_from_timestamp(timestamp: float) -> datetime:
+def utc_from_timestamp(timestamp: float) -> Any:
     """Return a UTC time from a timestamp."""
     return utc.localize(datetime.utcfromtimestamp(timestamp))
 

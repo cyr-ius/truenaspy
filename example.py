@@ -29,19 +29,17 @@ async def main() -> None:
 
     # Fetch all data
     await api.async_update()
-    logger.info(api.data)
-
-    # await api.async_get_interfaces()
-    # await api.async_get_services()
-    # await api.async_get_datasets()
-    # await api.async_get_pools()
-    # await api.async_get_disks()
-    # await api.async_get_jails()
-    # await api.async_get_virtualmachines()
-    # await api.async_get_cloudsync()
-    # await api.async_get_replications()
-    # await api.async_get_snapshottasks()
-    # await api.async_get_charts()
+    await api.async_get_interfaces()
+    await api.async_get_services()
+    await api.async_get_datasets()
+    await api.async_get_pools()
+    await api.async_get_disks()
+    await api.async_get_jails()
+    await api.async_get_virtualmachines()
+    await api.async_get_cloudsync()
+    await api.async_get_replications()
+    await api.async_get_snapshottasks()
+    await api.async_get_charts()
     await api.async_close()
 
     # ==================
@@ -54,12 +52,12 @@ async def main() -> None:
     def log() -> None:
         logger.info("===== EVENT =====> Data: %s ", api.datasets)
 
-    api.subscribe(Events.DATASETS, log)
+    api.subscribe(Events.DATASETS.value, log)
 
     def log_disk() -> None:
         logger.info("===== EVENT =====> Disks: %s ", api.disks)
 
-    api.subscribe(Events.DISKS, log_disk)
+    api.subscribe(Events.DISKS.value, log_disk)
 
     polling = True
     i = 0
@@ -67,7 +65,7 @@ async def main() -> None:
         i = i + 1
         await asyncio.sleep(15)
         if i == 5:
-            api.unsubscribe(Events.DISKS, log_disk)
+            api.unsubscribe(Events.DISKS.value, log_disk)
             polling = False
 
     await api.async_close()
