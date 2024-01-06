@@ -6,12 +6,7 @@ repos:
       - id: ruff
         args:
           - --fix
-  - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 23.12.1
-    hooks:
-      - id: black
-        args:
-          - --quiet
+      - id: ruff-format
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.6
     hooks:
@@ -50,7 +45,7 @@ repos:
           - --py311-plus
           - --force
           - --keep-updates
-        files: ^./.+\.py$
+        files: ^(/.+)?[^/]+\.py$
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.8.0
     hooks:
