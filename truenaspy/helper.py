@@ -1,9 +1,9 @@
 """API parser for JSON APIs."""
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from functools import reduce
+import json
 from logging import getLogger
 from typing import Any, Callable, Type
 
@@ -103,10 +103,10 @@ def systemstats_process(
 
 def search_attrs(identity: Type[Any], dataref: Any) -> Any:
     """Map attributes."""
-    attributes: list[dict[str, Any]] = []
+    attributes: list[dict[str, Any]] | dict[str, Any] = []
     if dataref is not None and identity.attrs:
         if not isinstance(dataref, list):
-            attributes: dict[str, Any] = {}  # type: ignore[no-redef]
+            attributes = {}
             dataref = [dataref]
         for item in dataref:
             attrs = {}
@@ -123,6 +123,6 @@ def search_attrs(identity: Type[Any], dataref: Any) -> Any:
             if isinstance(attributes, list):
                 attributes.append(attrs)
             else:
-                attributes.update(attrs)  # type: ignore[unreachable]
+                attributes.update(attrs)
 
     return attributes
