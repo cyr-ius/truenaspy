@@ -1,4 +1,5 @@
 """Class to collect a data."""
+
 from .helper import FieldType, b2gib, utc_from_timestamp
 
 

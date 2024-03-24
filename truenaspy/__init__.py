@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 
 """Truenaspy package."""
+
 from .api import TruenasClient
 from .exceptions import (
     TruenasAuthenticationError,

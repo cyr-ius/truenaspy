@@ -1,4 +1,5 @@
 """API parser for JSON APIs."""
+
 from __future__ import annotations
 
 from datetime import datetime
