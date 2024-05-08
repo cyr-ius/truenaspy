@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name        = "truenaspy"
-version     = "replace_by_workflow"
+dynamic     = ["version"]
 license     = {text = "GPL-3"}
 description = "Provides asynchronous authentication and access to Truenas devices"
 readme      = "README.md"
