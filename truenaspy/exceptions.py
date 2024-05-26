@@ -1,17 +1,25 @@
 """Exceptions for Truenas connect."""
 
 
-class TruenasError(Exception):
+class TruenasException(Exception):
     """General exception."""
 
 
-class TruenasConnectionError(TruenasError):
+class TruenasConnectionError(TruenasException):
     """Connection exception."""
 
 
-class TruenasAuthenticationError(TruenasError):
+class AuthenticationFailed(TruenasException):
     """Authentication exception."""
 
 
-class TruenasNotFoundError(TruenasError):
+class NotFoundError(TruenasException):
     """API not found exception."""
+
+
+class TimeoutExceededError(TruenasException):
+    """Timeout exception."""
+
+
+class UnexpectedResponse(TruenasException):
+    """Timeout exception."""

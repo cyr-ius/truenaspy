@@ -4,18 +4,20 @@
 
 from .api import TruenasClient
 from .exceptions import (
-    TruenasAuthenticationError,
+    AuthenticationFailed,
+    NotFoundError,
+    TimeoutExceededError,
     TruenasConnectionError,
-    TruenasError,
-    TruenasNotFoundError,
+    TruenasException,
 )
 from .subscription import Events
 
 __all__ = [
     "Events",
-    "TruenasAuthenticationError",
+    "AuthenticationFailed",
     "TruenasClient",
     "TruenasConnectionError",
-    "TruenasError",
-    "TruenasNotFoundError",
+    "TruenasException",
+    "NotFoundError",
+    "TimeoutExceededError",
 ]

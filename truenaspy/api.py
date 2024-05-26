@@ -29,7 +29,7 @@ from .collects import (
     Update,
     VirtualMachine,
 )
-from .exceptions import TruenasError, TruenasNotFoundError
+from .exceptions import NotFoundError, TruenasException
 from .helper import (
     ExtendedDict,
     as_local,
@@ -50,14 +50,17 @@ class TruenasClient(object):
         self,
         host: str,
         token: str,
-        session: ClientSession | None = None,
+        session: ClientSession = ClientSession(),
         use_ssl: bool = False,
         verify_ssl: bool = True,
         scan_intervall: int = 60,
         timeout: int = 300,
     ) -> None:
         """Initialize the TrueNAS API."""
-        self._access = Auth(host, token, use_ssl, verify_ssl, timeout, session)
+        self._access = Auth(session, host, token, use_ssl, verify_ssl, timeout)
+        self.session = session
+        self.query = self._access.async_request
+
         self._is_scale: bool = False
         self._is_virtual: bool = False
         self._sub = Subscriptions(
@@ -65,7 +68,6 @@ class TruenasClient(object):
         )
         self.is_connected: bool = False
         self._systemstats_errored: list[str] = []
-        self.query = self._access.async_request
         self.alerts: list[dict[str, Any]] = []
         self.charts: list[dict[str, Any]] = []
         self.cloudsync: list[dict[str, Any]] = []
@@ -268,7 +270,7 @@ class TruenasClient(object):
                     self._systemstats_errored,
                 )
                 await self.async_get_stats(items)
-        except TruenasError as error:
+        except TruenasException as error:
             # ERROR FIX: Cobia NAS-123862
             if self.system_infos.get("short_version") not in [
                 "23.10.0",
@@ -293,7 +295,7 @@ class TruenasClient(object):
 
         try:
             response = await self.query(path="boot/get_state")
-        except TruenasError as error:
+        except TruenasException as error:
             _LOGGER.debug(error)
             response = ExtendedDict()
 
@@ -357,7 +359,7 @@ class TruenasClient(object):
             try:
                 response = await self.query(path="jail")
                 self.jails = search_attrs(Jail, response)
-            except TruenasNotFoundError as error:
+            except NotFoundError as error:
                 _LOGGER.warning(error)
                 self.jails = []
         self._sub.notify(Events.JAILS.value)
@@ -423,14 +425,14 @@ class TruenasClient(object):
         """Get update info from TrueNAS."""
         try:
             response = await self.query(path="update/check_available", method="post")
-        except TruenasError as error:
+        except TruenasException as error:
             _LOGGER.debug(error)
             response = ExtendedDict()
         self.update_infos = search_attrs(Update, response)
 
         try:
             response = await self.query(path="update/get_trains")
-        except TruenasError as error:
+        except TruenasException as error:
             _LOGGER.debug(error)
             response = ExtendedDict()
         self.update_infos.update({"current_train": response.get("current")})
@@ -471,34 +473,25 @@ class TruenasClient(object):
                 try:
                     fnc = getattr(self, f"async_get_{event.value}")
                     await fnc()
-                except TruenasError as error:
+                except TruenasException as error:
                     _LOGGER.error(error)
                     nb_errors += 1
             self.is_connected = (
                 False if nb_errors > 0 and nb_events == nb_errors else True
             )
-        except TruenasError as error:
+        except TruenasException as error:
             _LOGGER.error(error)
             self.is_connected = False
 
     async def async_close(self) -> None:
         """Close open client session."""
-        await self._access.async_close()
+        if self.session:
+            await self.session.close()
 
     async def __aenter__(self) -> Self:
-        """Async enter.
-
-        Returns
-        -------
-            The LaMetricCloud object.
-        """
+        """Async enter."""
         return self
 
     async def __aexit__(self, *_exc_info: object) -> None:
-        """Async exit.
-
-        Args:
-        ----
-            _exc_info: Exec type.
-        """
+        """Async exit."""
         await self.async_close()
