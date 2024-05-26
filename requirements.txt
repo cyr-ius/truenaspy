@@ -1,2 +1,2 @@
-aiohttp>=3.8.1
-pytz
+aiohttp>=3.9.1
+pytz>=2023.3.post1
