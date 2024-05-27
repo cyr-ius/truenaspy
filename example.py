@@ -4,6 +4,8 @@
 import asyncio
 import logging
 
+import yaml
+
 from truenaspy import Events, TruenasClient
 
 logger = logging.getLogger()
@@ -14,12 +16,16 @@ formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-# Please , fill good values...
-HOST = "my.nas.local:8080"
-TOKEN = "xxxxxxxxxxxxxxxxxxxxxxxxx"
+# Fill out the secrets in secrets.yaml, you can find an example
+# _secrets.yaml file, which has to be renamed after filling out the secrets.
+with open("./secrets.yaml", encoding="UTF-8") as file:
+    secrets = yaml.safe_load(file)
+
+TOKEN = secrets["TOKEN"]
+HOST = secrets["HOST"]
 
 
-async def main() -> None:
+async def async_main() -> None:
     """Main function."""
 
     api = TruenasClient(token=TOKEN, host=HOST, use_ssl=True, verify_ssl=True)
@@ -70,6 +76,6 @@ async def main() -> None:
     await api.async_close()
 
 
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-loop.run_until_complete(main())
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(async_main())
