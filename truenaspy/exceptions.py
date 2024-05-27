@@ -5,7 +5,7 @@ class TruenasException(Exception):
     """General exception."""
 
 
-class TruenasConnectionError(TruenasException):
+class ConnectionError(TruenasException):
     """Connection exception."""
 
 
