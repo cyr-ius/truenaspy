@@ -200,6 +200,20 @@ class TruenasClient(object):
         self._sub.notify(Events.SYSTEM.value)
         return self.system_infos
 
+    async def async_restart_system(self) -> None:
+        """Restart system."""
+        await self.async_request("system/reboot", method="post")
+
+    async def async_shutdown_system(self) -> None:
+        """Restart system."""
+        await self.async_request("system/shutdown", method="post")
+
+    async def async_update_system(self, reboot: bool = False) -> None:
+        """Update system."""
+        await self.async_request(
+            "update/update", method="post", json={"reboot": reboot}
+        )
+
     async def async_get_interfaces(self) -> list[dict[str, Any]]:
         """Get interface info from TrueNAS."""
         response = await self.async_request("interface")
@@ -287,6 +301,34 @@ class TruenasClient(object):
         self._sub.notify(Events.SERVICES.value)
         return self.services
 
+    async def async_get_service(self, id: int) -> Any:
+        """Get Service from TrueNAS."""
+        return await self.async_request(f"service/id/{id}")
+
+    async def async_reload_service(self, service: str) -> None:
+        """Reload service."""
+        await self.async_request(
+            "service/reload", method="post", json={"service": service}
+        )
+
+    async def async_restart_service(self, service: str) -> None:
+        """Restart service."""
+        await self.async_request(
+            "service/restart", method="post", json={"service": service}
+        )
+
+    async def async_stop_service(self, service: str) -> None:
+        """Stop service."""
+        await self.async_request(
+            "service/stop", method="post", json={"service": service}
+        )
+
+    async def async_start_service(self, service: str) -> None:
+        """Start service."""
+        await self.async_request(
+            "service/start", method="post", json={"service": service}
+        )
+
     async def async_get_pools(self) -> list[dict[str, Any]]:
         """Get pools from TrueNAS."""
         response = await self.async_request("pool")
@@ -364,6 +406,22 @@ class TruenasClient(object):
         self._sub.notify(Events.JAILS.value)
         return self.jails
 
+    async def async_get_jail(self, id: int) -> Any:
+        """Get jail."""
+        return await self.async_request(f"jail/id/{id}")
+
+    async def async_restart_jail(self, id: int) -> None:
+        """Restart jail."""
+        await self.async_request("jail/restart", method="post", json={"jail": id})
+
+    async def async_stop_jail(self, id: int) -> None:
+        """Stop jail."""
+        await self.async_request("jail/stop", method="post", json={"jail": id})
+
+    async def async_start_jail(self, id: int) -> None:
+        """Start jail."""
+        await self.async_request("jail/start", method="post", json={"jail": id})
+
     async def async_get_virtualmachines(self) -> list[dict[str, Any]]:
         """Get VMs from TrueNAS."""
         response = await self.async_request("vm")
@@ -371,12 +429,36 @@ class TruenasClient(object):
         self._sub.notify(Events.VMS.value)
         return self.virtualmachines
 
-    async def async_get_cloudsync(self) -> list[dict[str, Any]]:
+    async def async_get_virtualmachine(self, id: int) -> Any:
+        """Get virtualmachine."""
+        return await self.async_request(f"vm/id/{id}")
+
+    async def async_stop_virtualmachine(self, id: int) -> None:
+        """Stop virtualmachine."""
+        await self.async_request(f"vm/id/{id}/stop", method="post")
+
+    async def async_start_virtualmachine(
+        self, id: int, overcommit: bool = False
+    ) -> None:
+        """Start virtualmachine."""
+        await self.async_request(
+            f"vm/id/{id}/start", method="post", json={"overcommit": overcommit}
+        )
+
+    async def async_get_cloudsyncs(self) -> list[dict[str, Any]]:
         """Get cloudsync from TrueNAS."""
         response = await self.async_request("cloudsync")
         self.cloudsync = search_attrs(CloudSync, response)
         self._sub.notify(Events.CLOUD.value)
         return self.cloudsync
+
+    async def async_get_cloudsync(self, id: int) -> Any:
+        """Get cloudsync job."""
+        return await self.async_request(f"cloudsync/id/{id}")
+
+    async def async_sync_cloudsync(self, id: int) -> None:
+        """Sync cloudsync job."""
+        await self.async_request(f"cloudsync/id/{id}/sync", method="post")
 
     async def async_get_replications(self) -> list[dict[str, Any]]:
         """Get replication from TrueNAS."""
@@ -399,6 +481,38 @@ class TruenasClient(object):
         self._sub.notify(Events.CHARTS.value)
         return self.charts
 
+    async def async_get_chart(self, id: int) -> Any:
+        """Get Charts from TrueNAS."""
+        return await self.async_request(f"chart/release/id/{id}")
+
+    async def async_update_chart(self, id: int) -> None:
+        """Update chart."""
+        await self.async_request(
+            "chart/release/upgrade", method="post", json={"release_name": id}
+        )
+
+    async def async_update_chart_image(self, repo: str, tag: str) -> None:
+        """Update chart image."""
+        await self.async_request(
+            "container/image/pull", method="post", json={"from_image": repo, "tag": tag}
+        )
+
+    async def async_stop_chart(self, id: int, replicas: int = 0) -> None:
+        """Stop chart."""
+        await self.async_request(
+            "chart/release/scale",
+            method="post",
+            json={"release_name": id, "scale_options": {"replica_count": replicas}},
+        )
+
+    async def async_start_chart(self, id: int, replicas: int = 1) -> None:
+        """Start chart."""
+        await self.async_request(
+            "chart/release/scale",
+            method="post",
+            json={"release_name": id, "scale_options": {"replica_count": replicas}},
+        )
+
     async def async_get_smartdisks(self) -> list[dict[str, Any]]:
         """Get smartdisk from TrueNAS."""
         response = await self.async_request("smart/test/results", params={"offset": 1})
@@ -420,24 +534,40 @@ class TruenasClient(object):
         self._sub.notify(Events.RSYNC.value)
         return self.rsynctasks
 
+    async def async_get_update_system(self) -> Any:
+        """Check update available."""
+        return await self.async_request("update/check_available", method="post")
+
+    async def async_get_trains(self) -> Any:
+        """Get trains update."""
+        return await self.async_request("update/get_trains")
+
+    async def async_get_jobs(self) -> Any:
+        """Get core jobs."""
+        return await self.async_request("core/get_jobs")
+
+    async def async_get_job(self, id: int) -> Any:
+        """Get core job."""
+        return await self.async_request("core/get_jobs", params={"id": id})
+
     async def async_get_update(self) -> dict[str, Any]:
         """Get update info from TrueNAS."""
         try:
-            response = await self.async_request("update/check_available", "post")
+            response = await self.async_get_update_system()
         except TruenasException as error:
             _LOGGER.debug(error)
             response = ExtendedDict()
         self.update_infos = search_attrs(Update, response)
 
         try:
-            response = await self.async_request("update/get_trains")
+            response = await self.async_get_trains()
         except TruenasException as error:
             _LOGGER.debug(error)
             response = ExtendedDict()
         self.update_infos.update({"current_train": response.get("current")})
 
-        if jobid := self.system_infos.get("job_id", 0):
-            response = await self.async_request("core/get_jobs", params={"id": jobid})
+        if job_id := self.system_infos.get("job_id", 0):
+            response = await self.async_get_job(job_id)
             jobs = search_attrs(Job, response)
             for job in jobs:
                 if (
@@ -451,8 +581,17 @@ class TruenasClient(object):
 
     async def async_is_alive(self) -> bool:
         """Check connection."""
-        result = await self.auth.async_request("core/ping")
+        result = await self.async_request("core/ping")
         return "pong" in result
+
+    async def async_take_snapshot(self, name: str) -> None:
+        """Create dataset snapshot."""
+        ts = datetime.now().isoformat(sep="_", timespec="microseconds")
+        await self.async_request(
+            "zfs/snapshot",
+            method="post",
+            json={"dataset": name, "name": f"custom-{ts}"},
+        )
 
     def subscribe(self, _callback: str, *args: Any) -> None:
         """Subscribe event."""
