@@ -8,7 +8,7 @@ import json
 from logging import getLogger
 from typing import Any, Callable, Type
 
-from pytz import utc  # type: ignore[import-untyped]
+from pytz import utc
 
 _LOGGER = getLogger(__name__)
 
