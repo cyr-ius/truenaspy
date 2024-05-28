@@ -41,7 +41,7 @@ async def async_main() -> None:
     await api.async_get_disks()
     await api.async_get_jails()
     await api.async_get_virtualmachines()
-    await api.async_get_cloudsync()
+    await api.async_get_cloudsyncs()
     await api.async_get_replications()
     await api.async_get_snapshottasks()
     await api.async_get_charts()
