@@ -81,6 +81,6 @@ class Auth:
             data = await response.json(loads=json_loads)
             _LOGGER.debug("Response: %s", data)
             return data
-        except ValueError as error:
+        except (TypeError, ValueError) as error:
             msg = "The Truenas API response is not formatted correctly"
             raise UnexpectedResponse(f"Error while decoding Json ({error})") from error
