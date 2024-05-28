@@ -16,7 +16,7 @@ class Events(Enum):
 
     ALERTS = "alerts"
     CHARTS = "charts"
-    CLOUD = "cloudsync"
+    CLOUD = "cloudsyncs"
     DATASETS = "datasets"
     DISKS = "disks"
     INTERFACES = "interfaces"
