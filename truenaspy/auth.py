@@ -56,9 +56,7 @@ class Auth:
         )
         try:
             async with asyncio.timeout(self._timeout):
-                _LOGGER.debug(
-                    "Url: %s (%s) - Content: %s", path, method, kwargs.get("json")
-                )
+                _LOGGER.debug("Request: %s (%s) - %s", path, method, kwargs.get("json"))
                 response = await self._session.request(
                     method, f"{self._url}/{path}", **kwargs
                 )
