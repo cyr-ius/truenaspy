@@ -8,8 +8,6 @@ import json
 from logging import getLogger
 from typing import Any, Callable, Type
 
-from pytz import utc
-
 _LOGGER = getLogger(__name__)
 
 
@@ -39,7 +37,7 @@ class FieldType(dict[str, Any]):
 
 def utc_from_timestamp(timestamp: float) -> Any:
     """Return a UTC time from a timestamp."""
-    return utc.localize(datetime.utcfromtimestamp(timestamp))
+    return datetime.utcfromtimestamp(timestamp).astimezone()
 
 
 def b2gib(b: int) -> float | None:
@@ -48,15 +46,12 @@ def b2gib(b: int) -> float | None:
         return round(b / 1073741824, 2)
 
 
-def as_local(dattim: datetime) -> datetime:
+def as_local(value: datetime) -> datetime:
     """Convert a UTC datetime object to local time zone."""
     local_timezone = datetime.now().astimezone().tzinfo
-    if dattim.tzinfo == local_timezone:
-        return dattim
-    if dattim.tzinfo is None:
-        dattim = utc.localize(dattim)
-
-    return dattim.astimezone(local_timezone)
+    if value.tzinfo == local_timezone:
+        return value
+    return value.astimezone(local_timezone)
 
 
 def json_loads(response: str | bytes) -> Any:
