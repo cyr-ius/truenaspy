@@ -7,6 +7,7 @@ name        = "truenaspy"
 dynamic     = ["version"]
 license     = {text = "GPL-3"}
 description = "Provides asynchronous authentication and access to Truenas devices"
+url         = "https://github.com/cyr-ius/truenaspy"
 readme      = "README.md"
 authors     = [
     {name = "Cyr-ius", email = "cyr-ius@ipocus.net"}
