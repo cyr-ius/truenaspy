@@ -7,6 +7,7 @@ from logging import getLogger
 from typing import Any, Self
 
 from aiohttp import ClientSession
+import semantic_version
 
 from .auth import Auth
 from .collect import (
@@ -656,12 +657,28 @@ class TruenasClient(object):
 
     async def async_update(self) -> None:
         """Update all data."""
+
+        version = await self.async_request("system/version")
+        version_short = await self.async_request("system/version_short")
+        is_scale = "SCALE" in version
         try:
             await self.async_is_alive()
             nb_events = len(Events)
             nb_errors = 0
             for event in Events:
                 try:
+                    if not is_scale and event.value == "charts":
+                        continue
+                    if is_scale and event.value == "jails":
+                        continue
+                    if (
+                        is_scale
+                        and event.value == "charts"
+                        and semantic_version.Version.coerce(version_short)
+                        >= semantic_version.Version.coerce("24.10.0.2")
+                    ):
+                        continue
+
                     fnc = getattr(self, f"async_get_{event.value}")
                     await fnc()
                 except TruenasException as error:
