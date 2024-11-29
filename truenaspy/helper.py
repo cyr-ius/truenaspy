@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import reduce
-import json
-from logging import getLogger
-from typing import Any, Callable, Type
-
-_LOGGER = getLogger(__name__)
+from typing import Any
 
 
 class ExtendedDict(dict[Any, Any]):
@@ -26,18 +22,9 @@ class ExtendedDict(dict[Any, Any]):
         return reduce_value
 
 
-class FieldType(dict[str, Any]):
-    """Attributes fields."""
-
-    name: str
-    default: Any = None
-    source: str | None = None
-    evaluation: Callable[..., Any] | None = None
-
-
 def utc_from_timestamp(timestamp: float) -> Any:
     """Return a UTC time from a timestamp."""
-    return datetime.utcfromtimestamp(timestamp).astimezone()
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
 
 def b2gib(b: int) -> float | None:
@@ -52,26 +39,6 @@ def as_local(value: datetime) -> datetime:
     if value.tzinfo == local_timezone:
         return value
     return value.astimezone(local_timezone)
-
-
-def json_loads(response: str | bytes) -> Any:
-    """Json load."""
-
-    def _float_parser(val: float | Any | None) -> float | None:
-        if val:
-            return round(float(val), 2)
-        return None
-
-    def _parser(obj: dict[str, Any]) -> ExtendedDict:
-        """parse json."""
-        for key, val in obj.items():
-            if val in ("on", "On", "ON", "yes", "Yes", "YES", "up", "Up", "UP"):
-                obj[key] = True
-            if val in ("off", "Off", "OFF", "no", "No", "NO", "down", "Down", "DOWN"):
-                obj[key] = True
-        return ExtendedDict(obj)
-
-    return json.loads(response, object_hook=_parser, parse_float=_float_parser)
 
 
 def systemstats_process(
@@ -95,30 +62,3 @@ def systemstats_process(
                     fill_dict[f"{mode}_{item}"] = round(value, 2)
                 else:
                     fill_dict[item] = round(value, 2)
-
-
-def search_attrs(identity: Type[Any], dataref: Any) -> Any:
-    """Map attributes."""
-    attributes: list[dict[str, Any]] | dict[str, Any] = []
-    if dataref is not None and identity.attrs:
-        if not isinstance(dataref, list):
-            attributes = {}
-            dataref = [dataref]
-        for item in dataref:
-            attrs = {}
-            for attr in identity.attrs:
-                name = attr["name"]
-                key = attr.get("source", name)
-                value = item.getr(key, attr.get("default"))
-                if value and (evaluation := attr.get("evaluation")):
-                    try:
-                        value = evaluation(value)
-                    except Exception as error:  # pylint: disable=broad-except
-                        _LOGGER.error(error)
-                attrs.update({name: value})
-            if isinstance(attributes, list):
-                attributes.append(attrs)
-            else:
-                attributes.update(attrs)
-
-    return attributes

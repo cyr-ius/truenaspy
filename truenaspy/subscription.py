@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from enum import Enum
 from logging import getLogger
+import time
 from typing import Any, Callable, List, Tuple
 
 _LOGGER = getLogger(__name__)
@@ -16,6 +16,7 @@ class Events(Enum):
 
     ALERTS = "alerts"
     CHARTS = "charts"
+    APPS = "apps"
     CLOUD = "cloudsyncs"
     DATASETS = "datasets"
     DISKS = "disks"

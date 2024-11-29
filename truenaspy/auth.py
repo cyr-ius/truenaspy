@@ -16,7 +16,6 @@ from .exceptions import (
     TruenasException,
     UnexpectedResponse,
 )
-from .helper import json_loads
 
 _LOGGER = getLogger(__name__)
 
@@ -78,7 +77,7 @@ class Auth:
             raise TruenasException(msg) from error
 
         try:
-            data = await response.json(loads=json_loads)
+            data = await response.json()
             _LOGGER.debug("Response: %s", data)
             return data
         except (TypeError, ValueError) as error:
