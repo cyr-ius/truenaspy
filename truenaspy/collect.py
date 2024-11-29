@@ -39,10 +39,13 @@ class System(DataClassDictMixin):  # type: ignore
 class Update(DataClassDictMixin):  # type: ignore
     """Update."""
 
-    available: UpdateStatus
-    version: UpdateVersion
-    job_id: int
-    progress: int
+    available: UpdateStatus | None = None
+    version: UpdateVersion | None = None
+    job_id: int | None = None
+    progress: int | None = None
+    status: bool | None = field(
+        metadata=field_options(deserialize=lambda x: x == "AVAILABLE"), default=None
+    )
 
 
 @dataclass
