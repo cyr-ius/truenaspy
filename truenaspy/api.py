@@ -365,8 +365,8 @@ class TruenasClient(object):
             if mountpoint := dataset.get("mountpoint"):
                 available = dataset.get("available", 0)
                 used = dataset.get("used", 0)
-                dataset_available[mountpoint] = b2gib(available["parsed"])
-                dataset_total[mountpoint] = b2gib(available["parsed"] + used["parsed"])
+                dataset_available[mountpoint] = b2gib(available)
+                dataset_total[mountpoint] = b2gib(available + used)
 
         for pool in self.pools:
             if value := dataset_available.get(pool["path"]):

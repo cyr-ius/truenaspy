@@ -11,6 +11,16 @@ from mashumaro import DataClassDictMixin, field_options
 from .helper import b2gib, utc_from_timestamp
 
 
+def parsed(field: dict[str, Any]) -> Any:
+    return field.get("parsed")
+
+
+def ts2date(field: dict[str, Any]) -> Any:
+    return utc_from_timestamp(
+        field["$date"] if field["$date"] < 100000000000 else field["$date"] / 1000
+    )
+
+
 @dataclass
 class System(DataClassDictMixin):  # type: ignore
     """System."""
@@ -110,9 +120,12 @@ class AutoTrim(DataClassDictMixin):  # type: ignore
 class Scan(DataClassDictMixin):  # type: ignore
     function: str
     state: str
-    scrub_start: DateTime = field(metadata=field_options(alias="start_time"))
-    scrub_end: DateTime = field(metadata=field_options(alias="end_time"))
-    # scrub_end: StopTime = field(metadata=field_options(alias="end_time"))
+    scrub_start: datetime = field(
+        metadata=field_options(deserialize=ts2date, alias="start_time")
+    )
+    scrub_end: datetime = field(
+        metadata=field_options(deserialize=ts2date, alias="end_time")
+    )
     scrub_secs_left: int | None = field(metadata=field_options(alias="total_secs_left"))
 
 
@@ -140,8 +153,8 @@ class RootDataset(DataClassDictMixin):  # type: ignore
 
 @dataclass
 class Properties(DataClassDictMixin):  # type: ignore
-    used: Parsed
-    available: Parsed
+    used: int = field(metadata=field_options(alias="allocated"), default=0)
+    available: int = field(metadata=field_options(alias="allocated"), default=0)
 
 
 @dataclass
@@ -193,31 +206,36 @@ class VirtualMachine(DataClassDictMixin):  # type: ignore
 
 @dataclass
 class Dataset(DataClassDictMixin):  # type: ignore
-    available: Parsed
-    checksum: Parsed
-    compression: Parsed
-    copies: Parsed
-    deduplication: Parsed
+    available: int = field(metadata=field_options(deserialize=parsed))
+    checksum: bool = field(metadata=field_options(deserialize=parsed))
+    compression: str = field(metadata=field_options(deserialize=parsed))
+    copies: int = field(metadata=field_options(deserialize=parsed))
+    deduplication: bool = field(metadata=field_options(deserialize=parsed))
     encrypted: bool
     id: str
     locked: str
     mountpoint: str
     name: str
     pool: str
-    readonly: Parsed
-    sync: Parsed
+    readonly: bool = field(metadata=field_options(deserialize=parsed))
+    sync: str = field(metadata=field_options(deserialize=parsed))
     type: str
-    used: Parsed
-    used_gb: Parsed | None = field(
-        metadata=field_options(deserialize=lambda x: 0 if not x else b2gib(x)),
-        default=None,
+    used: int = field(metadata=field_options(deserialize=parsed))
+    used_gb: float = field(
+        metadata=field_options(deserialize=lambda x: b2gib(parsed(x)), alias="used")
     )
-    recordsize: Parsed | None = None
-    quota: Parsed | None = None
-    exec: Parsed | None = None
-    comments: Parsed | None = None
-    casesensitivity: Parsed | None = None
-    atime: Parsed | None = None
+    recordsize: int | None = field(
+        metadata=field_options(deserialize=parsed), default=None
+    )
+    quota: str | None = field(metadata=field_options(deserialize=parsed), default=None)
+    exec: str | None = field(metadata=field_options(deserialize=parsed), default=None)
+    comments: str | None = field(
+        metadata=field_options(deserialize=parsed), default=None
+    )
+    casesensitivity: str | None = field(
+        metadata=field_options(deserialize=parsed), default=None
+    )
+    atime: bool | None = field(metadata=field_options(deserialize=parsed), default=None)
 
 
 @dataclass
@@ -311,7 +329,13 @@ class Smart(DataClassDictMixin):  # type: ignore
     model: str
     zfs_guid: str
     devname: bool
-    tests: StateTest
+    tests: bool = field(
+        metadata=field_options(
+            deserialize=lambda x: x[0].get("status", "") == "SUCCESS"
+            if isinstance(x, list) and len(x) > 0
+            else False
+        )
+    )
 
 
 @dataclass
@@ -325,8 +349,10 @@ class Alert(DataClassDictMixin):  # type: ignore
     formatted: str
     klass: str
     level: str
-    date_created: DateTime = field(metadata=field_options(alias="datetime"))
-    last_occurrence: DateTime
+    date_created: datetime = field(
+        metadata=field_options(deserialize=ts2date, alias="datetime")
+    )
+    last_occurrence: datetime = field(metadata=field_options(deserialize=ts2date))
 
 
 @dataclass
@@ -346,48 +372,9 @@ class Portals(DataClassDictMixin):  # type: ignore
 
 
 @dataclass
-class StateTest(DataClassDictMixin):  # type: ignore
-    status: str | None = field(
-        metadata=field_options(
-            deserialize=lambda x: x[0].get("status") != "SUCCESS"
-            if isinstance(x, list) and len(x) > 0
-            else False
-        ),
-        default=None,
-    )
-
-
-@dataclass
 class State(DataClassDictMixin):  # type: ignore
     running: bool | None = field(
         metadata=field_options(deserialize=lambda x: x == "RUNNING"), default=None
-    )
-
-
-@dataclass
-class Parsed(DataClassDictMixin):  # type: ignore
-    parsed: str
-
-
-@dataclass
-class StartTime:
-    start_time: DateTime
-
-
-@dataclass
-class StopTime:
-    stop_time: DateTime
-
-
-@dataclass
-class DateTime(DataClassDictMixin):  # type: ignore
-    date: datetime = field(
-        metadata=field_options(
-            deserialize=lambda x: utc_from_timestamp(
-                x if x < 100000000000 else x / 1000
-            ),
-            alias="$date",
-        )
     )
 
 
