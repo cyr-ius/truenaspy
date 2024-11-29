@@ -98,11 +98,12 @@ class TruenasClient(object):
 
         try:
             response = await self.async_request("system/is_freenas")
+            check = bool(response)
         except TruenasException:
             rsp = str(await self.async_request("system/product_type"))
-            response = "SCALE" not in rsp
+            check = "SCALE" not in rsp
 
-        self._is_scale = response is False
+        self._is_scale = check is False
         self._is_virtual = self.system_infos["system_manufacturer"] in [
             "QEMU",
             "VMware, Inc.",
