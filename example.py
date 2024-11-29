@@ -46,6 +46,7 @@ async def async_main() -> None:
         logger.info(await api.async_get_replications())
         logger.info(await api.async_get_snapshottasks())
         # logger.info(await api.async_get_charts())
+        logger.info(await api.async_get_update())
         logger.info(await api.async_get_smartdisks())
         logger.info(await api.async_get_rsynctasks())
         logger.info(await api.async_get_docker())
