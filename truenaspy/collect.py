@@ -17,7 +17,9 @@ def parsed(field: dict[str, Any]) -> Any:
 
 def ts2date(field: dict[str, Any]) -> Any:
     return utc_from_timestamp(
-        field["$date"] if field["$date"] < 100000000000 else field["$date"] / 1000
+        field.get("$date", 0)
+        if field.get("$date", 0) < 100000000000
+        else field.get("$date", 0) / 1000
     )
 
 
