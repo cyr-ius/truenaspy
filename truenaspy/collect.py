@@ -336,7 +336,7 @@ class Smart(DataClassDictMixin):  # type: ignore
     devname: bool
     tests: bool = field(
         metadata=field_options(
-            deserialize=lambda x: x[0].get("status", "") == "SUCCESS"
+            deserialize=lambda x: x[0].get("status", "") != "SUCCESS"
             if isinstance(x, list) and len(x) > 0
             else False
         )
