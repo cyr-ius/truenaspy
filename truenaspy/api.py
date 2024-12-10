@@ -52,13 +52,14 @@ class TruenasClient(object):
         self,
         host: str,
         token: str,
-        session: ClientSession = ClientSession(),
+        session: ClientSession | None = None,
         use_ssl: bool = False,
         verify_ssl: bool = True,
         scan_intervall: int = 60,
         timeout: int = 300,
     ) -> None:
         """Initialize the TrueNAS API."""
+        session = session or ClientSession()
         self.auth = Auth(session, host, token, use_ssl, verify_ssl, timeout)
         self.async_request = self.auth.async_request
 
