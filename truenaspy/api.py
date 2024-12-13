@@ -556,6 +556,18 @@ class TruenasClient(object):
             "app/upgrade", method="post", json={"app_name": app_name}
         )
 
+    async def async_pull_images(self, app_name: str) -> None:
+        """Pull image chart image."""
+        await self.async_request(
+            "app/pull_images", method="post", json={"name": app_name}
+        )
+
+    async def async_outdated_images(self, app_name: str) -> None:
+        """Returns a list of outdated docker images for the specified app."""
+        await self.async_request(
+            "app/outdated_docker_images", method="post", data=app_name
+        )
+
     async def async_stop_app(self, app_name: str) -> None:
         """Stop chart."""
         await self.async_request("app/stop", method="post", json=app_name)
