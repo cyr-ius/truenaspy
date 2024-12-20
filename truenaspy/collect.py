@@ -40,7 +40,7 @@ class Update(DataClassDictMixin):  # type: ignore
     """Update."""
 
     available: UpdateStatus | None = None
-    version: UpdateVersion | None = None
+    version: str | None = None
     job_id: int | None = None
     progress: int | None = None
     status: bool | None = field(
