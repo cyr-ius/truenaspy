@@ -584,15 +584,20 @@ class TruenasClient(object):
         return self.smartdisks
 
     async def async_get_alerts(self) -> list[dict[str, Any]]:
-        """Get smartdisk from TrueNAS."""
+        """Get alerts from TrueNAS."""
         response = await self.async_request("alert/list")
-        self.alerts = [Alert.from_dict(item) for item in response]
+        self.alerts = [Alert.from_dict(item).to_dict() for item in response]
         self._sub.notify(Events.ALERTS.value)
         return self.alerts
 
+    async def async_is_alerts(self) -> bool:
+        """Return boolean if alerts from TrueNAS."""
+        response = await self.async_request("alert/list")
+        return response is not None and len(response) != 0
+
     async def async_dismiss_alert(self, id: str) -> None:
         """Stop chart."""
-        await self.async_request("aleert/dismiss", method="post", json=id)
+        await self.async_request("alert/dismiss", method="post", json=id)
 
     async def async_get_rsynctasks(self) -> list[dict[str, Any]]:
         """Get smartdisk from TrueNAS."""
