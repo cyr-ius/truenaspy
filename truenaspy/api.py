@@ -69,6 +69,7 @@ class TruenasClient(object):
             (self.async_update, self.async_is_alive), scan_intervall
         )
         self.is_connected: bool = False
+        self.is_alerts: bool = False
         self._systemstats_errored: list[str] = []
         self.alerts: list[dict[str, Any]] = []
         self.charts: list[dict[str, Any]] = []
@@ -587,13 +588,9 @@ class TruenasClient(object):
         """Get alerts from TrueNAS."""
         response = await self.async_request("alert/list")
         self.alerts = [Alert.from_dict(item).to_dict() for item in response]
+        self.is_alerts = len(self.alerts) != 0
         self._sub.notify(Events.ALERTS.value)
         return self.alerts
-
-    async def async_is_alerts(self) -> bool:
-        """Return boolean if alerts from TrueNAS."""
-        response = await self.async_request("alert/list")
-        return response is not None and len(response) != 0
 
     async def async_dismiss_alert(self, id: str) -> None:
         """Stop chart."""
