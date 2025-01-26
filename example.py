@@ -35,7 +35,6 @@ async def async_main() -> None:
         # Fetch all data
         # await api.async_update()
         logger.info(await api.async_get_alerts())
-        logger.info(await api.async_is_alerts())
         logger.info(await api.async_get_interfaces())
         logger.info(await api.async_get_datasets())
         logger.info(await api.async_get_pools())
