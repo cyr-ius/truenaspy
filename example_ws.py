@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 
-from truenaspy import Websocket, WebsocketError
+from truenaspy import TruenasWebsocket, WebsocketError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -40,8 +40,9 @@ async def on_any_event(data: Any) -> None:
 async def async_main() -> None:
     """Main function."""
     try:
-        ws = Websocket(host=HOST, use_tls=True)
-        await ws.async_connect()
+        ws = TruenasWebsocket(host=HOST, use_tls=True)
+        listener = await ws.async_connect()
+
         await ws.async_login(USERNAME, PASSWORD)
 
         info = await ws.async_send_msg(method="system.info")
@@ -77,8 +78,7 @@ async def async_main() -> None:
         # Subsscribe all events
         await ws.async_subscribe("*", on_any_event)
 
-        while ws.is_connected or ws.is_logged:
-            await asyncio.sleep(1)
+        await listener
 
     except asyncio.TimeoutError:
         logger.error("Timeout error")
