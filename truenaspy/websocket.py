@@ -27,7 +27,7 @@ from .exceptions import AuthenticationFailed, TimeoutExceededError, WebsocketErr
 logger = logging.getLogger(__name__)
 
 
-class Websocket:
+class TruenasWebsocket:
     """Websocket class."""
 
     def __init__(
@@ -77,7 +77,7 @@ class Websocket:
             await self.async_ping()
             await asyncio.sleep(WS_PING_INTERVAL)
 
-    async def async_connect(self) -> None:
+    async def async_connect(self) -> asyncio.Task[Any]:
         """Connect to the websocket."""
 
         if not self._session:
@@ -93,7 +93,7 @@ class Websocket:
             raise WebsocketError(e)
         else:
             logger.debug(f"Connected to websocket ({uri})")
-            asyncio.create_task(self.async_listen())
+            return asyncio.create_task(self.async_listen(), name="truenaspy_ws_listen")
 
     async def async_listen(self) -> None:
         """Listen for events on the WebSocket."""

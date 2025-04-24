@@ -12,16 +12,16 @@ from .exceptions import (
     WebsocketError,
 )
 from .subscription import Events
-from .websocket import Websocket
+from .websocket import TruenasWebsocket
 
 __all__ = [
-    "Events",
     "AuthenticationFailed",
-    "TruenasClient",
     "ConnectionError",
-    "TruenasException",
+    "Events",
     "NotFoundError",
     "TimeoutExceededError",
-    "Websocket",
+    "TruenasClient",
+    "TruenasException",
+    "TruenasWebsocket",
     "WebsocketError",
 ]
