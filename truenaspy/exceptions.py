@@ -5,6 +5,14 @@ class TruenasException(Exception):
     """General exception."""
 
 
+class WebsocketError(Exception):
+    """General exception."""
+
+
+class CallbackFailed(WebsocketError):
+    """General exception."""
+
+
 class ConnectionError(TruenasException):
     """Connection exception."""
 

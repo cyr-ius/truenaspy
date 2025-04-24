@@ -9,8 +9,10 @@ from .exceptions import (
     NotFoundError,
     TimeoutExceededError,
     TruenasException,
+    WebsocketError,
 )
 from .subscription import Events
+from .websocket import Websocket
 
 __all__ = [
     "Events",
@@ -20,4 +22,6 @@ __all__ = [
     "TruenasException",
     "NotFoundError",
     "TimeoutExceededError",
+    "Websocket",
+    "WebsocketError",
 ]
