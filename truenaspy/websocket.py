@@ -64,15 +64,18 @@ class TruenasWebsocket:
     @property
     def is_connected(self) -> bool:
         """Return if we are connect to the WebSocket."""
+
         return self.ws is not None and not self.ws.closed
 
     @property
     def is_logged(self) -> bool:
         """Return if we are connect to the WebSocket."""
+
         return self._login_status == LOGIN_SUCCESS
 
     async def _async_heartbeat(self) -> None:
         """Heartbeat websocket."""
+
         while self.ws and not self.ws.closed:
             await self.async_ping()
             await asyncio.sleep(WS_PING_INTERVAL)
@@ -97,6 +100,7 @@ class TruenasWebsocket:
 
     async def async_listen(self) -> None:
         """Listen for events on the WebSocket."""
+
         if not self.ws:
             raise WebsocketError("WebSocket not connected")
 
@@ -178,6 +182,7 @@ class TruenasWebsocket:
 
     async def async_login(self, username: str, password: str | None = None) -> None:
         """Login to the WebSocket."""
+
         if not self.ws:
             raise WebsocketError("WebSocket not connected")
 
@@ -192,16 +197,17 @@ class TruenasWebsocket:
             self._login_status = response.get("response_type")
             if not self.is_logged:
                 raise AuthenticationFailed("Login failed")
-        except TimeoutExceededError:
+        except TimeoutExceededError as error:
             logger.error("Login timeout")
             self._logged = False
-            raise AuthenticationFailed("Login timeout")
+            raise AuthenticationFailed(f"Login timeout ({error}))")
         else:
             logger.debug("Logged in to websocket")
             asyncio.create_task(self._async_heartbeat())
 
     async def async_ping(self) -> None:
         """Send ping."""
+
         await self.async_send_msg(method="core.ping")
 
     async def async_subscribe(
@@ -236,8 +242,25 @@ class TruenasWebsocket:
 
         await self.async_subscribe(event, one_time_callback)
 
+    async def async_unsubscribe(self, event: str) -> None:
+        """Unsubscribe from a events."""
+
+        if event in self._event_callbacks:
+            del self._event_callbacks[event]
+            await self.async_send_msg("core.unsubscribe", [event])
+            logger.debug(f"Unsubscribed from event: {event}")
+        else:
+            logger.debug(f"Event {event} not found in subscriptions")
+
+        # Unsubscribe from all events
+        if event == "*":
+            self._event_callbacks.clear()
+            await self.async_send_msg("core.unsubscribe", ["*"])
+            logger.debug("Unsubscribed from all events")
+
     async def async_close(self) -> None:
         """Close the WebSocket connection."""
+
         if self.ws:
             await self.ws.close()
             self.ws = None

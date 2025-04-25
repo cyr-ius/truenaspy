@@ -27,16 +27,6 @@ USERNAME = secrets["USERNAME"]
 PASSWORD = secrets["PASSWORD"]
 
 
-async def job_handler(job_data: Any) -> None:
-    """Handle job updates."""
-    print("📢 Job update received:", job_data)
-
-
-async def on_any_event(data: Any) -> None:
-    """Handle any event."""
-    print("🌐 Event:", data)
-
-
 async def async_main() -> None:
     """Main function."""
     try:
@@ -47,9 +37,7 @@ async def async_main() -> None:
 
         info = await ws.async_send_msg(method="system.info")
         logger.info(info)
-        info = await ws.async_send_msg(
-            method="device.get_info", params={"type": "DISK"}
-        )
+        info = await ws.async_send_msg(method="device.get_info", params={"type": "GPU"})
         logger.info(info)
         info = await ws.async_send_msg(method="docker.status")
         logger.info(info)
@@ -57,26 +45,59 @@ async def async_main() -> None:
         logger.info(info)
         info = await ws.async_send_msg(method="app.query")
         logger.info(info)
-        info = await ws.async_send_msg(method="virt.global.config")
+        info = await ws.async_send_msg(method="virt.instance.query")
+        logger.info(info)
+        info = await ws.async_send_msg(method="pool.query")
         logger.info(info)
         info = await ws.async_send_msg(method="pool.dataset.details")
         logger.info(info)
-        info = await ws.async_send_msg(
-            method="reporting.get_data",
-            params=[[{"name": "cpu"}], {"unit": "HOUR"}],
-        )
+        info = await ws.async_send_msg(method="service.query")
         logger.info(info)
-        services = await ws.async_send_msg(method="service.query")
-        logger.info(services)
+        # info = await ws.async_send_msg(
+        #     method="reporting.get_data",
+        #     params=[[{"name": "cpu"}], {"unit": "HOUR"}],
+        # )
+        # logger.info(info)
+        # info = await ws.async_send_msg(method="smart.test.results")
+        # logger.info(info)
+        # info = await ws.async_send_msg(
+        #     method="zfs.snapshot.query",
+        #     # params=[[], {"count": True}],
+        #     params=[
+        #         [["pool", "!=", "boot-pool"], ["pool", "!=", "freenas-boot"]],
+        #         {"select": ["dataset", "snapshot_name", "pool"]},
+        #     ],
+        # )
+        # logger.info(info)
 
         ## Subscribe at Event
 
-        # Subsscribe events
-        await ws.async_subscribe("core.get_jobs", job_handler)
-        await ws.async_subscribe("alert.list", on_any_event)
+        # events = {}
+        # async def on_job_handler(data) -> None:
+        #     """Calbback for websocket."""
+        #     name = data["collection"].replace(".", "_")
+        #     if events.get(name) is None:
+        #         events[name] = []
+        #     if data["msg"].upper() == "ADDED":
+        #         events[name].append(data["fields"])
+        #     if data["msg"].upper() == "REMOVED":
+        #         id_to_remove = data["id"]
+        #         events[name] = [
+        #             event for event in events[name] if event["id"] != id_to_remove
+        #         ]
+        #     print("📢 Job list:", events)
+        # await ws.async_subscribe("core.get_jobs", on_job_handler)
+
+        async def on_any_event(data: Any) -> None:
+            """Handle any event."""
+            print("🌐 Event:", data)
+
+        await ws.async_subscribe("reporting.realtime", on_any_event)
+        # await ws.async_unsubscribe("reporting.realtime")
 
         # Subsscribe all events
         await ws.async_subscribe("*", on_any_event)
+        # await ws.async_unsubscribe("*")
 
         await listener
 
