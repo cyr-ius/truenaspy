@@ -30,37 +30,42 @@ PASSWORD = secrets["PASSWORD"]
 async def async_main() -> None:
     """Main function."""
     try:
-        ws = TruenasWebsocket(host=HOST, use_tls=True)
-        listener = await ws.async_connect()
+        ws = TruenasWebsocket(host=HOST, use_tls=True, verify_ssl=False)
+        listener = await ws.async_connect(USERNAME, PASSWORD)
 
-        await ws.async_login(USERNAME, PASSWORD)
+        info = await ws.async_call(method="system.info")
+        logger.info(info)
+        info = await ws.async_call(method="device.get_info", params={"type": "GPU"})
+        logger.info(info)
+        info = await ws.async_call(method="docker.status")
+        logger.info(info)
+        info = await ws.async_call(method="docker.config")
+        logger.info(info)
+        info = await ws.async_call(method="app.query")
+        logger.info(info)
+        info = await ws.async_call(method="virt.instance.query")
+        logger.info(info)
+        info = await ws.async_call(method="pool.query")
+        logger.info(info)
+        info = await ws.async_call(method="pool.dataset.details")
+        logger.info(info)
+        for dataset in info:
+            info = await ws.async_call(
+                method="pool.dataset.snapshot_count", params=[dataset["id"]]
+            )
+            logger.info("%s - %s", dataset["id"], info)
 
-        info = await ws.async_send_msg(method="system.info")
+        info = await ws.async_call(method="service.query")
         logger.info(info)
-        info = await ws.async_send_msg(method="device.get_info", params={"type": "GPU"})
-        logger.info(info)
-        info = await ws.async_send_msg(method="docker.status")
-        logger.info(info)
-        info = await ws.async_send_msg(method="docker.config")
-        logger.info(info)
-        info = await ws.async_send_msg(method="app.query")
-        logger.info(info)
-        info = await ws.async_send_msg(method="virt.instance.query")
-        logger.info(info)
-        info = await ws.async_send_msg(method="pool.query")
-        logger.info(info)
-        info = await ws.async_send_msg(method="pool.dataset.details")
-        logger.info(info)
-        info = await ws.async_send_msg(method="service.query")
-        logger.info(info)
-        # info = await ws.async_send_msg(
+
+        ## Complex query
+
+        # info = await ws.async_call(
         #     method="reporting.get_data",
         #     params=[[{"name": "cpu"}], {"unit": "HOUR"}],
         # )
         # logger.info(info)
-        # info = await ws.async_send_msg(method="smart.test.results")
-        # logger.info(info)
-        # info = await ws.async_send_msg(
+        # info = await ws.async_call(
         #     method="zfs.snapshot.query",
         #     # params=[[], {"count": True}],
         #     params=[
@@ -96,8 +101,17 @@ async def async_main() -> None:
         # await ws.async_unsubscribe("reporting.realtime")
 
         # Subsscribe all events
-        await ws.async_subscribe("*", on_any_event)
+
+        # await ws.async_subscribe("*", on_any_event)
         # await ws.async_unsubscribe("*")
+
+        ## Execute a command
+
+        # try:
+        #     job = await ws.async_call("service.stop", params=["snmp"])
+        #     print("Job:", job)
+        # except WebsocketError as error:
+        #     logger.error(f"Error: {error}")
 
         await listener
 
