@@ -9,6 +9,10 @@ class WebsocketError(TruenasException):
     """General exception."""
 
 
+class ExecutionFailed(WebsocketError):
+    """Command exception."""
+
+
 class ConnectionError(TruenasException):
     """Connection exception."""
 

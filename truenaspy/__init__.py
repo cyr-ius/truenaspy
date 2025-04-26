@@ -6,6 +6,7 @@ from .api import TruenasClient
 from .exceptions import (
     AuthenticationFailed,
     ConnectionError,
+    ExecutionFailed,
     NotFoundError,
     TimeoutExceededError,
     TruenasException,
@@ -24,4 +25,5 @@ __all__ = [
     "TruenasException",
     "TruenasWebsocket",
     "WebsocketError",
+    "ExecutionFailed",
 ]
