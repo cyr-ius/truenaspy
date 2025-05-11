@@ -35,6 +35,11 @@ async def async_main() -> None:
 
         info = await ws.async_call(method="system.info")
         logger.info(info)
+        info = await ws.async_call(
+            method="device.get_info",
+            params={"type": "DISK", "get_partitions": True, "serials_only": False},
+        )
+        logger.info(info)
         info = await ws.async_call(method="device.get_info", params={"type": "GPU"})
         logger.info(info)
         info = await ws.async_call(method="docker.status")
@@ -57,9 +62,28 @@ async def async_main() -> None:
 
         info = await ws.async_call(method="service.query")
         logger.info(info)
+        info = await ws.async_call(method="reporting.netdata_graphs")
+        logger.info(info)
+        info = await ws.async_call(
+            method="reporting.netdata_graph", params=["disktemp"]
+        )
+        logger.info(info)
 
         ## Complex query
 
+        # info = await ws.async_call(
+        #     method="reporting.netdata_get_data",
+        #     params=[
+        #         [
+        #             {"name": "cpu"},
+        #             {"name": "cputemp"},
+        #             # {"name": "disk"},
+        #             # {"name": "disktemp"},
+        #         ],
+        #         {"unit": "DAY", "aggregate": True},
+        #     ],
+        # )
+        # logger.info(info)
         # info = await ws.async_call(
         #     method="reporting.get_data",
         #     params=[[{"name": "cpu"}], {"unit": "HOUR"}],
@@ -95,9 +119,12 @@ async def async_main() -> None:
 
         async def on_any_event(data: Any) -> None:
             """Handle any event."""
-            print("🌐 Event:", data)
+            logger.info("🌐 Collection: %s, Event: %s", data["collection"], data)
 
         await ws.async_subscribe("reporting.realtime", on_any_event)
+        # await ws.async_subscribe("reporting.processes", on_any_event)
+        # await ws.async_subscribe("system.health", on_any_event)
+        # await ws.async_subscribe("trueview.stats", on_any_event)
         # await ws.async_unsubscribe("reporting.realtime")
 
         # Subsscribe all events
