@@ -1,11 +1,10 @@
 -r requirements.txt
 
 codespell
-mypy
+ruff
+yamllint
 pre-commit
 pytest
 pytest-asyncio
 python-typing-update
-ruff
 types-pytz
-yamllint
