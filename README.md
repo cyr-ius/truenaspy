@@ -21,19 +21,20 @@ $ python setup.py install
 
 ```python
 # Import the truenaspy package.
-from truenaspy import TrueNASAPI
+from truenaspy import TruenasWebsocket
 
-TOKEN="012345"
 HOST="1.2.3.4:8080"
 
 async def main():
-    api = TrueNASAPI(token=TOKEN, host=HOST, use_ssl=False, verify_ssl=False)
-    rslt = await api.async_get_system()
+    websocket = TruenasWebsocket(host=HOST, use_tls=True, verify_ssl=False)
+    listener = await websocket.async_connect(USERNAME, PASSWORD)
+    info = await ws.async_call(method="system.info")
     print(rlst)
-    await api.async_close()
+    await websocket.async_close()
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+asyncio.run(async_main())
 ```
 
 Have a look at the [example.py](https://github.com/cyr-ius/truenaspy/blob/master/example.py) for a more complete overview.
