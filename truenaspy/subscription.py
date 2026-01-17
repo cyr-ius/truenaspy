@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from enum import Enum
-from logging import getLogger
 import time
-from typing import Any, Callable, List, Tuple
-
-_LOGGER = getLogger(__name__)
+from typing import Any
 
 
 class Events(Enum):
@@ -37,10 +35,10 @@ class Subscriptions:
     """Store subscriptions."""
 
     def __init__(
-        self, api: Tuple[Callable[..., Any], Callable[..., Any]], scan_intervall: int
+        self, api: tuple[Callable[..., Any], Callable[..., Any]], scan_intervall: int
     ) -> None:
         """Init and store callbacks."""
-        self._callbacks: dict[str, List[Callable[..., Any]]] = {}
+        self._callbacks: dict[str, list[Callable[..., Any]]] = {}
         self._polling: bool = False
         self._update_all = api[0]
         self._is_alive = api[1]
