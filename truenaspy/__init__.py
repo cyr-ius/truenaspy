@@ -2,7 +2,6 @@
 
 """Truenaspy package."""
 
-from .api import TruenasClient
 from .exceptions import (
     AuthenticationFailed,
     ConnectionError,
@@ -21,7 +20,6 @@ __all__ = [
     "Events",
     "NotFoundError",
     "TimeoutExceededError",
-    "TruenasClient",
     "TruenasException",
     "TruenasWebsocket",
     "WebsocketError",
