@@ -159,7 +159,7 @@ async def async_main() -> None:
 
         await listener
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error("Timeout error")
     except WebsocketError as error:
         logger.error(f"Websocket error: {error}")
