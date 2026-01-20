@@ -118,7 +118,7 @@ class TruenasWebsocket:
 
         uri = f"{self._scheme}://{self._host}:{self._port}{ENDPOINT}"
         try:
-            self.ws = await self._session.ws_connect(uri, ssl=ssl_context)
+            self.ws = await self._session.ws_connect(uri, ssl=ssl_context, heartbeat=WS_PING_INTERVAL, autoping=True)
         except (aiohttp.ClientError, socket.gaierror) as error:
             logger.error(f"Failed to connect to websocket: {error}")
             if self._session_owner and self._session:
@@ -136,7 +136,7 @@ class TruenasWebsocket:
             await self._async_handle_login(username, password)
 
             # Heartbeat
-            self._heartbeat_task = asyncio.create_task(self._async_heartbeat())
+            # self._heartbeat_task = asyncio.create_task(self._async_heartbeat())
 
             return self._listener_task
 
@@ -326,12 +326,12 @@ class TruenasWebsocket:
         """Close the WebSocket connection."""
 
         # Call tasks
-        if self._heartbeat_task and not self._heartbeat_task.done():
-            self._heartbeat_task.cancel()
-            try:
-                await self._heartbeat_task
-            except asyncio.CancelledError:
-                pass
+        #if self._heartbeat_task and not self._heartbeat_task.done():
+        #    self._heartbeat_task.cancel()
+        #    try:
+        #        await self._heartbeat_task
+        #    except asyncio.CancelledError:
+        #        pass
 
         self._heartbeat_task = None
 
