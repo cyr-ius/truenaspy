@@ -118,7 +118,9 @@ class TruenasWebsocket:
 
         uri = f"{self._scheme}://{self._host}:{self._port}{ENDPOINT}"
         try:
-            self.ws = await self._session.ws_connect(uri, ssl=ssl_context, heartbeat=WS_PING_INTERVAL, autoping=True)
+            self.ws = await self._session.ws_connect(
+                uri, ssl=ssl_context, heartbeat=WS_PING_INTERVAL, autoping=True
+            )
         except (aiohttp.ClientError, socket.gaierror) as error:
             logger.error(f"Failed to connect to websocket: {error}")
             if self._session_owner and self._session:
@@ -326,7 +328,7 @@ class TruenasWebsocket:
         """Close the WebSocket connection."""
 
         # Call tasks
-        #if self._heartbeat_task and not self._heartbeat_task.done():
+        # if self._heartbeat_task and not self._heartbeat_task.done():
         #    self._heartbeat_task.cancel()
         #    try:
         #        await self._heartbeat_task
