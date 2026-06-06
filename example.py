@@ -137,7 +137,8 @@ async def async_main() -> None:
         await ws.async_subscribe("reporting.realtime", on_any_event)
         # await ws.async_subscribe("reporting.processes", on_any_event)
         # await ws.async_subscribe("system.health", on_any_event)
-        # await ws.async_subscribe("trueview.stats", on_any_event)
+        # await ws.async_subscribe("system.health", on_any_event)
+        await ws.async_subscribe("update.status", on_any_event)
         # await ws.async_unsubscribe("reporting.realtime")
 
         # -----------------------------------
@@ -172,6 +173,4 @@ async def async_main() -> None:
 
 
 if __name__ == "__main__":
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
     asyncio.run(async_main())
