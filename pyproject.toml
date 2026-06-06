@@ -28,6 +28,14 @@ dependencies    = [
     "aiohttp>=3.9.5",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pytest",
+    "pytest-asyncio",
+    "python-typing-update",
+]
+
 [project.urls]
 Homepage = "https://github.com/cyr-ius/truenaspy"
 

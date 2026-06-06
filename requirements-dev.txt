@@ -1,6 +1,0 @@
--r requirements.txt
-
-ruff
-pytest
-pytest-asyncio
-python-typing-update

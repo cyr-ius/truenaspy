@@ -7,7 +7,7 @@
     "ghcr.io/devcontainers-extra/features/prek:1": {},
     "ghcr.io/devcontainers-extra/features/uv:1": {}
   },
-  "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && prek install --overwrite && uv venv --clear && uv pip install --no-cache-dir --link-mode=copy -r requirements-dev.txt",
+  "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && prek install --overwrite && uv venv --clear && uv pip install --no-cache-dir --link-mode=copy -e '.[dev]'",
   "customizations": {
     "vscode": {
       "extensions": [
