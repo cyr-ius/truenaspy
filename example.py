@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 
-from truenaspy import TruenasWebsocket, WebsocketError
+from truenaspy import TimeoutExceededError, TruenasWebsocket, WebsocketError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -160,7 +160,7 @@ async def async_main() -> None:
 
         await listener
 
-    except TimeoutError:
+    except TimeoutExceededError:
         logger.error("Timeout error")
     except WebsocketError as error:
         logger.error(f"Websocket error: {error}")

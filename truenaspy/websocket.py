@@ -52,7 +52,7 @@ class TruenasWebsocket:
         self._host = host
         self._scheme = "wss" if use_tls else "ws"
         self._port = WSS_PORT if use_tls else WS_PORT
-        self._port = port if port else self._port
+        self._port = port if port is not None else self._port
         self._verify_ssl = verify_ssl
         self._session: ClientSession = session or ClientSession()
         self._session_owner = session is None
@@ -74,7 +74,7 @@ class TruenasWebsocket:
 
     @property
     def is_logged(self) -> bool:
-        """Return if we are connect to the WebSocket."""
+        """Return if we are logged in."""
         return self._login_status == LOGIN_SUCCESS
 
     async def _create_ssl_context(self, verify_ssl: bool) -> ssl.SSLContext:
@@ -206,7 +206,7 @@ class TruenasWebsocket:
     ) -> Any:
         """Send a message to the WebSocket with timeout."""
 
-        if not self.ws:
+        if not self.is_connected:
             raise WebsocketError("WebSocket not connected")
 
         if params is None:
