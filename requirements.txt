@@ -1,3 +1,1 @@
 aiohttp>=3.9.5
-semantic_version>=2.10.0
-mashumaro>=3.13
