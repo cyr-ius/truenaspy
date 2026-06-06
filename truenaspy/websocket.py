@@ -69,7 +69,7 @@ class TruenasWebsocket:
 
     @property
     def is_connected(self) -> bool:
-        """Return if we are connect to the WebSocket."""
+        """Return if we are connected to the WebSocket."""
         return self.ws is not None and not self.ws.closed
 
     @property
@@ -227,6 +227,7 @@ class TruenasWebsocket:
         self._pendings[msg_id] = future
 
         try:
+            assert self.ws is not None
             await self.ws.send_json(message)
             logger.debug("Sent message: %s", message)
             return await asyncio.wait_for(future, timeout)
@@ -270,14 +271,12 @@ class TruenasWebsocket:
     ) -> None:
         """Subscribe to a TrueNAS event and register a callback."""
 
-        # Register callback
+        # Send the subscribe message first — register locally only on success
+        await self.async_call("core.subscribe", [event])
+
         if event not in self._event_callbacks:
             self._event_callbacks[event] = []
-
         self._event_callbacks[event].append(callback)
-
-        # Send the subscribe message
-        await self.async_call("core.subscribe", [event])
         logger.debug("Subscribed to event: %s", event)
 
     async def async_subscribe_once(
