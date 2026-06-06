@@ -16,6 +16,7 @@ import aiohttp
 from aiohttp import ClientSession, ClientWebSocketResponse
 
 from .const import (
+    DEFAULT_CALL_TIMEOUT,
     ENDPOINT,
     JSON_RPC_VERSION,
     LOGIN_SUCCESS,
@@ -198,7 +199,10 @@ class TruenasWebsocket:
             logger.exception("Unhandled exception in event callback: %s", e)
 
     async def async_call(
-        self, method: str, params: Any | None = None, timeout: float = 10.0
+        self,
+        method: str,
+        params: Any | None = None,
+        timeout: float = DEFAULT_CALL_TIMEOUT,
     ) -> Any:
         """Send a message to the WebSocket with timeout."""
 
@@ -286,7 +290,6 @@ class TruenasWebsocket:
             try:
                 await callback(params)
             finally:
-                # Remove callback after first execution
                 if (
                     event in self._event_callbacks
                     and one_time_callback in self._event_callbacks[event]
@@ -294,6 +297,7 @@ class TruenasWebsocket:
                     self._event_callbacks[event].remove(one_time_callback)
                     if not self._event_callbacks[event]:
                         del self._event_callbacks[event]
+                        await self.async_call("core.unsubscribe", [event])
 
         await self.async_subscribe(event, one_time_callback)
 
@@ -331,7 +335,7 @@ class TruenasWebsocket:
         self._pendings.clear()
 
         # Close Websocket
-        if self.ws and not self.ws.closed:  # Vérifier si pas déjà fermé
+        if self.ws and not self.ws.closed:
             await self.ws.close()
         self.ws = None
         self._login_status = None
@@ -353,6 +357,9 @@ class TruenasWebsocket:
         """Exit the runtime context related to this object."""
         await self.async_close()
         if exc_type is not None:
-            logger.exception("Exception in WebSocket context", exc_info=exc_val)
+            logger.error(
+                "Exception in WebSocket context",
+                exc_info=(exc_type, exc_val, exc_tb),
+            )
         else:
             logger.debug("Exited WebSocket context")
