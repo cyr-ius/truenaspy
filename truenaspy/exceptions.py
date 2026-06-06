@@ -13,7 +13,7 @@ class ExecutionFailed(WebsocketError):
     """Command exception."""
 
 
-class ConnectionError(TruenasException):
+class TruenasConnectionError(TruenasException):
     """Connection exception."""
 
 
@@ -30,4 +30,4 @@ class TimeoutExceededError(TruenasException):
 
 
 class UnexpectedResponse(TruenasException):
-    """Timeout exception."""
+    """Unexpected response from the API."""

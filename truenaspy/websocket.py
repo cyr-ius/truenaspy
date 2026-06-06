@@ -55,7 +55,6 @@ class TruenasWebsocket:
         self._verify_ssl = verify_ssl
         self._session: ClientSession = session or ClientSession()
         self._session_owner = session is None
-        self._heartbeat_task: asyncio.Task[Any] | None = None
         self._listener_task: asyncio.Task[Any] | None = None
         self._login_status: str | None = None
 
@@ -85,15 +84,6 @@ class TruenasWebsocket:
             context.verify_mode = ssl.CERT_NONE
         return context
 
-    async def _async_heartbeat(self) -> None:
-        """Heartbeat websocket."""
-        while self.ws and not self.ws.closed:
-            try:
-                await self.async_ping()
-            except Exception as e:
-                logger.warning(f"Heartbeat ping failed: {e}")
-            await asyncio.sleep(WS_PING_INTERVAL)
-
     async def async_connect(self, username: str, password: str) -> asyncio.Task[Any]:
         """Connect to the websocket.
 
@@ -122,7 +112,7 @@ class TruenasWebsocket:
                 uri, ssl=ssl_context, heartbeat=WS_PING_INTERVAL, autoping=True
             )
         except (aiohttp.ClientError, socket.gaierror) as error:
-            logger.error(f"Failed to connect to websocket: {error}")
+            logger.error("Failed to connect to websocket: %s", error)
             if self._session_owner and self._session:
                 await self._session.close()
             raise WebsocketError(error) from error
@@ -136,9 +126,6 @@ class TruenasWebsocket:
 
             # Login
             await self._async_handle_login(username, password)
-
-            # Heartbeat
-            # self._heartbeat_task = asyncio.create_task(self._async_heartbeat())
 
             return self._listener_task
 
@@ -156,13 +143,13 @@ class TruenasWebsocket:
                     logger.info("WebSocket connection closed by server")
                     break
                 elif msg.type == aiohttp.WSMsgType.ERROR:
-                    logger.error(f"WebSocket error: {msg.data}")
+                    logger.error("WebSocket error: %s", msg.data)
                     break
         except asyncio.CancelledError:
             logger.debug("Listener task cancelled")
             raise
         except (aiohttp.ClientError, json.JSONDecodeError) as e:
-            logger.exception(f"Error in WebSocket listener: {e}")
+            logger.exception("Error in WebSocket listener: %s", e)
             raise WebsocketError(f"WebSocket error: {e}") from e
         finally:
             for future in self._pendings.values():
@@ -174,7 +161,7 @@ class TruenasWebsocket:
         """Handle incoming messages from the WebSocket."""
 
         message = json.loads(data)
-        logger.debug(f"Received message: {message}")
+        logger.debug("Received message: %s", message)
 
         if "id" in message:
             future = self._pendings.pop(message.get("id"), None)
@@ -184,7 +171,7 @@ class TruenasWebsocket:
                 elif "error" in message:
                     future.set_exception(ExecutionFailed(message["error"]))
                 else:
-                    logger.warning(f"Response without result or error: {message}")
+                    logger.warning("Response without result or error: %s", message)
         elif "method" in message and "params" in message:
             await self._async_handle_event(message.get("params"))
 
@@ -208,7 +195,7 @@ class TruenasWebsocket:
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.exception(f"Unhandled exception in event callback: {e}")
+            logger.exception("Unhandled exception in event callback: %s", e)
 
     async def async_call(
         self, method: str, params: Any | None = None, timeout: float = 10.0
@@ -237,7 +224,7 @@ class TruenasWebsocket:
 
         try:
             await self.ws.send_json(message)
-            logger.debug(f"Sent message: {message}")
+            logger.debug("Sent message: %s", message)
             return await asyncio.wait_for(future, timeout)
         except asyncio.TimeoutError:
             self._pendings.pop(msg_id, None)
@@ -267,7 +254,7 @@ class TruenasWebsocket:
             raise AuthenticationFailed(f"Login timeout ({error})") from error
         except ExecutionFailed as error:
             self._login_status = None
-            raise AuthenticationFailed(f"Login timeout ({error})") from error
+            raise AuthenticationFailed(f"Login failed ({error})") from error
 
     async def async_ping(self) -> None:
         """Send ping."""
@@ -287,7 +274,7 @@ class TruenasWebsocket:
 
         # Send the subscribe message
         await self.async_call("core.subscribe", [event])
-        logger.debug(f"Subscribed to event: {event}")
+        logger.debug("Subscribed to event: %s", event)
 
     async def async_subscribe_once(
         self, event: str, callback: Callable[[Any], Coroutine[Any, Any, None]]
@@ -320,22 +307,12 @@ class TruenasWebsocket:
         elif event in self._event_callbacks:
             del self._event_callbacks[event]
             await self.async_call("core.unsubscribe", [event])
-            logger.debug(f"Unsubscribed from event: {event}")
+            logger.debug("Unsubscribed from event: %s", event)
         else:
-            logger.debug(f"Event {event} not found in subscriptions")
+            logger.debug("Event %s not found in subscriptions", event)
 
     async def async_close(self) -> None:
         """Close the WebSocket connection."""
-
-        # Call tasks
-        # if self._heartbeat_task and not self._heartbeat_task.done():
-        #    self._heartbeat_task.cancel()
-        #    try:
-        #        await self._heartbeat_task
-        #    except asyncio.CancelledError:
-        #        pass
-
-        self._heartbeat_task = None
 
         if self._listener_task and not self._listener_task.done():
             self._listener_task.cancel()

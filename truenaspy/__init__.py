@@ -4,10 +4,10 @@
 
 from .exceptions import (
     AuthenticationFailed,
-    ConnectionError,
     ExecutionFailed,
     NotFoundError,
     TimeoutExceededError,
+    TruenasConnectionError,
     TruenasException,
     WebsocketError,
 )
@@ -16,12 +16,12 @@ from .websocket import TruenasWebsocket
 
 __all__ = [
     "AuthenticationFailed",
-    "ConnectionError",
     "Events",
+    "ExecutionFailed",
     "NotFoundError",
     "TimeoutExceededError",
+    "TruenasConnectionError",
     "TruenasException",
     "TruenasWebsocket",
     "WebsocketError",
-    "ExecutionFailed",
 ]
