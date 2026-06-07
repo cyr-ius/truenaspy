@@ -17,6 +17,7 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Framework :: AsyncIO",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
@@ -30,9 +31,11 @@ dependencies    = [
 [project.optional-dependencies]
 dev = [
     "ruff",
+    "prek",
     "pytest",
     "pytest-asyncio",
     "python-typing-update",
+    "yamllint",
 ]
 
 [project.urls]
@@ -42,14 +45,9 @@ Homepage = "https://github.com/cyr-ius/truenaspy"
 
 [tool.setuptools]
 platforms = ["any"]
-zip-safe  = false
-include-package-data = true
 
 [tool.setuptools.packages.find]
 exclude = ["node_modules*"]
-
-[tool.ruff.lint.flake8-pytest-style]
-fixture-parentheses = false
 
 [tool.ruff.lint.isort]
 force-sort-within-sections = true
