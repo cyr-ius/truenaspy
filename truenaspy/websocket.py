@@ -231,7 +231,7 @@ class TruenasWebsocket:
             await self.ws.send_json(message)
             logger.debug("Sent message: %s", message)
             return await asyncio.wait_for(future, timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self._pendings.pop(msg_id, None)
             raise TimeoutExceededError(f"Timeout on websocket: {method}")
         except Exception:
