@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import reduce
 from typing import Any
 
@@ -24,7 +24,7 @@ class ExtendedDict(dict[Any, Any]):
 
 def utc_from_timestamp(timestamp: float) -> Any:
     """Return a UTC time from a timestamp."""
-    return datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    return datetime.fromtimestamp(timestamp, tz=UTC)
 
 
 def b2gib(b: int) -> float | None:

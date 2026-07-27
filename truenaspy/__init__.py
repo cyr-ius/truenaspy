@@ -9,7 +9,6 @@ from .exceptions import (
     TruenasException,
     WebsocketError,
 )
-
 from .websocket import TruenasWebsocket
 
 __all__ = [
