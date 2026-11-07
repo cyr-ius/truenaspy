@@ -51,7 +51,7 @@ def systemstats_process(
     if "aggregations" in graph:
         for item in graph["legend"]:
             if item in arr:
-                value: int = graph["aggregations"]["mean"].get(item, 0)
+                value: float = graph["aggregations"]["mean"].get(item, 0)
                 if mode == "memory":
                     fill_dict[f"memory_{item}"] = round(value, 2)
                 elif mode == "cpu":
