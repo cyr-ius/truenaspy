@@ -9,7 +9,7 @@ import logging
 import socket
 import ssl
 from types import TracebackType
-from typing import Any
+from typing import Any, Self
 import uuid
 
 import aiohttp
@@ -150,7 +150,7 @@ class TruenasWebsocket:
             logger.debug("Listener task cancelled")
             raise
         except (aiohttp.ClientError, json.JSONDecodeError) as e:
-            logger.exception("Error in WebSocket listener: %s", e)
+            logger.exception("Error in WebSocket listener")
             raise WebsocketError(f"WebSocket error: {e}") from e
         finally:
             for future in self._pendings.values():
@@ -195,8 +195,8 @@ class TruenasWebsocket:
             task.result()
         except asyncio.CancelledError:
             pass
-        except Exception as e:
-            logger.exception("Unhandled exception in event callback: %s", e)
+        except Exception:
+            logger.exception("Unhandled exception in event callback")
 
     async def async_call(
         self,
@@ -343,7 +343,7 @@ class TruenasWebsocket:
         if self._session and self._session_owner:
             await self._session.close()
 
-    async def __aenter__(self) -> TruenasWebsocket:
+    async def __aenter__(self) -> Self:
         """Enter the runtime context related to this object."""
         return self
 

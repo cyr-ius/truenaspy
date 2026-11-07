@@ -166,8 +166,8 @@ async def async_main() -> None:
         logger.error(f"Websocket error: {error}")
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt")
-    except Exception as error:
-        logger.error(error)
+    except Exception:
+        logger.exception("Unexpected error")
     finally:
         await ws.async_close()
 
